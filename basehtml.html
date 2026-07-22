@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Augmented Rality for study</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>AURA-3D</h1>
+      <p>Fase 1: Motor de Visión por Computador</p>
+    </header>
+
+    <main>
+      <div id="camera-container">
+        <!-- Video oculto: solo fuente de datos para MediaPipe -->
+        <video id="input_video" autoplay playsinline></video>
+        <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
+        <canvas id="output_canvas" width="640" height="480"></canvas>
+      </div>
+
+      <div id="info-panel">
+        <p>Estado: <span id="status">Iniciando cámara...</span></p>
+        <p>Gesto: <span id="gesture">Ninguno</span></p>
+        <p>Distancia pellizco: <span id="pinch-distance">-</span></p>
+      </div>
+    </main>
+
+    <!-- Librerías de MediaPipe Hands (vía CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <!-- Nuestro código -->
+    <script src="js/main.js"></script>
+  </body>
+</html>
