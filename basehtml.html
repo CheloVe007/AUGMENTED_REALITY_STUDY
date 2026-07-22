@@ -1,9 +1,9 @@
 <!doctype html>
-<html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Augmented Rality for study</title>
+    <title>AURA-3D | Prototipo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -13,26 +13,49 @@
     </header>
 
     <main>
-      <div id="camera-container">
-        <!-- Video oculto: solo fuente de datos para MediaPipe -->
-        <video id="input_video" autoplay playsinline></video>
-        <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
-        <canvas id="output_canvas" width="640" height="480"></canvas>
+      <div id="panels">
+        <div id="camera-container">
+          <!-- Video oculto: solo fuente de datos para MediaPipe -->
+          <video id="input_video" autoplay playsinline></video>
+          <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
+          <canvas id="output_canvas" width="640" height="480"></canvas>
+        </div>
+
+        <div id="scene-container">
+          <!-- Aquí Three.js va a renderizar la escena 3D -->
+          <canvas id="three_canvas" width="640" height="480"></canvas>
+        </div>
       </div>
 
       <div id="info-panel">
         <p>Estado: <span id="status">Iniciando cámara...</span></p>
         <p>Gesto: <span id="gesture">Ninguno</span></p>
         <p>Distancia pellizco: <span id="pinch-distance">-</span></p>
+        <p>
+          Quest: <span id="quest-status">Arrastra el cubo a la zona verde</span>
+        </p>
       </div>
     </main>
 
-    <!-- Librerías de MediaPipe Hands (vía CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <!-- Librerías de MediaPipe Hands (vía CDN, versiones fijas y compatibles entre sí) -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"
+      crossorigin="anonymous"
+    ></script>
 
-    <!-- Nuestro código -->
-    <script src="js/main.js"></script>
+    <!-- Three.js (versión UMD, compatible con <script> normal, sin necesidad de bundler) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+    <!-- Nuestro código: primero la escena 3D, luego la visión por computador que la controla -->
+    <script src="main.js"></script>
+    <script src="scene3D.js"></script>
   </body>
 </html>

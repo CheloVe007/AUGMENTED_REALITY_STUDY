@@ -2,6 +2,16 @@
 // AURA-3D — Fase 1: Motor de Visión por Computador
 // ============================================
 
+// --- Verificación defensiva: ¿cargaron bien las librerías del CDN? ---
+if (typeof Hands === "undefined" || typeof Camera === "undefined") {
+  document.getElementById("status").textContent =
+    "ERROR: no se cargaron las librerías de MediaPipe (revisa la consola y tu conexión a internet)";
+  console.error(
+    "Hands o Camera no están definidos. Revisa que los <script> del CDN en index.html carguen correctamente (pestaña Network en F12).",
+  );
+  throw new Error("MediaPipe no cargó correctamente");
+}
+
 // --- Referencias al DOM ---
 const videoElement = document.getElementById("input_video");
 const canvasElement = document.getElementById("output_canvas");
@@ -119,6 +129,11 @@ function procesarGesto(landmarks) {
     ? "rgba(248,113,113,0.8)"
     : "rgba(56,189,248,0.8)";
   canvasCtx.fill();
+
+  // --- Enviamos la posición de la mano a la escena 3D (scene3d.js) ---
+  if (typeof updatePointer === "function") {
+    updatePointer(smoothedX, smoothedY, isPinching);
+  }
 }
 
 // --- Inicialización de la cámara ---
