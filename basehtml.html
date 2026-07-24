@@ -3,39 +3,104 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AURA-3D | Prototipo</title>
+    <title>AURA-3D | Plataforma de Aprendizaje Inmersivo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <h1>AURA-3D</h1>
-      <p>Fase 1: Motor de Visión por Computador</p>
-    </header>
-
-    <main>
-      <div id="panels">
-        <div id="camera-container">
-          <!-- Video oculto: solo fuente de datos para MediaPipe -->
-          <video id="input_video" autoplay playsinline></video>
-          <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
-          <canvas id="output_canvas" width="640" height="480"></canvas>
-        </div>
-
-        <div id="scene-container">
-          <!-- Aquí Three.js va a renderizar la escena 3D -->
-          <canvas id="three_canvas" width="640" height="480"></canvas>
-        </div>
-      </div>
-
-      <div id="info-panel">
-        <p>Estado: <span id="status">Iniciando cámara...</span></p>
-        <p>Gesto: <span id="gesture">Ninguno</span></p>
-        <p>Distancia pellizco: <span id="pinch-distance">-</span></p>
-        <p>
-          Quest: <span id="quest-status">Arrastra el cubo a la zona verde</span>
+    <!-- ============================== -->
+    <!-- PANTALLA 1: MENÚ DE INICIO      -->
+    <!-- ============================== -->
+    <div id="home-screen" class="screen active">
+      <div class="home-content">
+        <h1 class="logo">AURA-3D</h1>
+        <p class="tagline">
+          Aprendizaje inmersivo con gestos, visión por computador y hardware
         </p>
+
+        <div class="name-input-group">
+          <label for="user-name">¿Cómo te llamas?</label>
+          <input
+            type="text"
+            id="user-name"
+            placeholder="Escribe tu nombre"
+            autocomplete="off"
+          />
+        </div>
+
+        <h2 class="section-title">Elige un modo de aprendizaje</h2>
+
+        <div class="mode-grid">
+          <button class="mode-card" data-mode="ar-quiz">
+            <span class="mode-icon">🖐️</span>
+            <span class="mode-title">Quiz Realidad Aumentada</span>
+            <span class="mode-desc"
+              >Resuelve retos moviendo objetos 3D con gestos</span
+            >
+          </button>
+
+          <button class="mode-card disabled" data-mode="reading">
+            <span class="mode-icon">📖</span>
+            <span class="mode-title">Concentración de Lectura</span>
+            <span class="mode-desc">Próximamente</span>
+          </button>
+
+          <button class="mode-card disabled" data-mode="exams">
+            <span class="mode-icon">📝</span>
+            <span class="mode-title">Exámenes</span>
+            <span class="mode-desc">Próximamente</span>
+          </button>
+
+          <button class="mode-card disabled" data-mode="progress">
+            <span class="mode-icon">📊</span>
+            <span class="mode-title">Progreso</span>
+            <span class="mode-desc">Próximamente</span>
+          </button>
+        </div>
+
+        <p id="home-error" class="home-error"></p>
       </div>
-    </main>
+    </div>
+
+    <!-- ============================== -->
+    <!-- PANTALLA 2: QUIZ DE REALIDAD AUMENTADA -->
+    <!-- ============================== -->
+    <div id="ar-screen" class="screen">
+      <header class="ar-header">
+        <button id="back-button" class="back-button">← Volver al menú</button>
+        <div class="ar-title">
+          <h1>AURA-3D</h1>
+          <p>
+            Quiz de Realidad Aumentada — <span id="player-name-display"></span>
+          </p>
+        </div>
+      </header>
+
+      <main>
+        <div id="panels">
+          <div id="camera-container">
+            <!-- Video oculto: solo fuente de datos para MediaPipe -->
+            <video id="input_video" autoplay playsinline></video>
+            <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
+            <canvas id="output_canvas" width="640" height="480"></canvas>
+          </div>
+
+          <div id="scene-container">
+            <!-- Aquí Three.js va a renderizar la escena 3D -->
+            <canvas id="three_canvas" width="640" height="480"></canvas>
+          </div>
+        </div>
+
+        <div id="info-panel">
+          <p>Estado: <span id="status">Esperando inicio...</span></p>
+          <p>Gesto: <span id="gesture">Ninguno</span></p>
+          <p>Distancia pellizco: <span id="pinch-distance">-</span></p>
+          <p>
+            Quest:
+            <span id="quest-status">Arrastra el cubo a la zona verde</span>
+          </p>
+        </div>
+      </main>
+    </div>
 
     <!-- Librerías de MediaPipe Hands (vía CDN, versiones fijas y compatibles entre sí) -->
     <script
@@ -54,8 +119,9 @@
     <!-- Three.js (versión UMD, compatible con <script> normal, sin necesidad de bundler) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
-    <!-- Nuestro código: primero la escena 3D, luego la visión por computador que la controla -->
-    <script src="main.js"></script>
+    <!-- Nuestro código: escena 3D, luego CV, y al final la navegación del menú -->
     <script src="scene3D.js"></script>
+    <script src="main.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>

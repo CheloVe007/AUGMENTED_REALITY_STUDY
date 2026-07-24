@@ -24,8 +24,6 @@ const pinchDistanceEl = document.getElementById("pinch-distance");
 const PINCH_THRESHOLD = 0.07; // distancia normalizada (0 a 1 aprox)
 
 // --- Variables para el suavizado EMA ---
-// alpha cercano a 1 = respuesta rápida pero con temblor
-// alpha cercano a 0 = muy suave pero con lag
 const EMA_ALPHA = 0.4;
 let smoothedX = null;
 let smoothedY = null;
@@ -38,8 +36,8 @@ const hands = new Hands({
 });
 
 hands.setOptions({
-  maxNumHands: 1, // empezamos con una sola mano, más simple y estable
-  modelComplexity: 1, // 0 = rápido/impreciso, 1 = balance, mejor para la mayoría de PCs
+  maxNumHands: 1,
+  modelComplexity: 1,
   minDetectionConfidence: 0.7,
   minTrackingConfidence: 0.7,
 });
@@ -48,7 +46,6 @@ hands.onResults(onResults);
 
 // --- Función principal que se ejecuta en cada frame detectado ---
 function onResults(results) {
-  // Limpiamos el canvas y dibujamos el frame de video actual
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   canvasCtx.drawImage(
@@ -64,7 +61,6 @@ function onResults(results) {
 
     const landmarks = results.multiHandLandmarks[0];
 
-    // Dibujamos el esqueleto de la mano (usa drawing_utils.js)
     drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
       color: "#38bdf8",
       lineWidth: 2,
@@ -89,12 +85,9 @@ function onResults(results) {
 
 // --- Lógica de detección de gesto "Pellizco" ---
 function procesarGesto(landmarks) {
-  // Puntos clave según el modelo de MediaPipe Hands:
-  // 4 = punta del pulgar, 8 = punta del índice
   const thumbTip = landmarks[4];
   const indexTip = landmarks[8];
 
-  // Distancia euclidiana 2D (ignoramos z por ahora, es relativa/poco fiable)
   const dx = thumbTip.x - indexTip.x;
   const dy = thumbTip.y - indexTip.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
@@ -105,13 +98,10 @@ function procesarGesto(landmarks) {
   gestureEl.textContent = isPinching ? "PELLIZCO ✊" : "Mano abierta";
   gestureEl.style.color = isPinching ? "#f87171" : "#4ade80";
 
-  // Punto medio entre pulgar e índice = nuestro "puntero"
   const rawX = (thumbTip.x + indexTip.x) / 2;
   const rawY = (thumbTip.y + indexTip.y) / 2;
 
-  // --- Suavizado EMA (Exponential Moving Average) ---
   if (smoothedX === null) {
-    // Primer frame: inicializamos sin suavizado
     smoothedX = rawX;
     smoothedY = rawY;
   } else {
@@ -119,7 +109,6 @@ function procesarGesto(landmarks) {
     smoothedY = EMA_ALPHA * rawY + (1 - EMA_ALPHA) * smoothedY;
   }
 
-  // Dibujamos el puntero suavizado en el canvas para verificar visualmente
   const px = smoothedX * canvasElement.width;
   const py = smoothedY * canvasElement.height;
 
@@ -130,13 +119,12 @@ function procesarGesto(landmarks) {
     : "rgba(56,189,248,0.8)";
   canvasCtx.fill();
 
-  // --- Enviamos la posición de la mano a la escena 3D (scene3d.js) ---
   if (typeof updatePointer === "function") {
     updatePointer(smoothedX, smoothedY, isPinching);
   }
 }
 
-// --- Inicialización de la cámara ---
+// --- Cámara: se crea una sola vez, pero NO arranca automáticamente ---
 const camera = new Camera(videoElement, {
   onFrame: async () => {
     await hands.send({ image: videoElement });
@@ -145,12 +133,25 @@ const camera = new Camera(videoElement, {
   height: 480,
 });
 
-camera
-  .start()
-  .then(() => {
-    statusEl.textContent = "Cámara activa";
-  })
-  .catch((err) => {
-    statusEl.textContent = "Error al acceder a la cámara";
-    console.error("Error de cámara:", err);
-  });
+// --- Funciones expuestas para que app.js controle cuándo prender/apagar la cámara ---
+function startARExperience() {
+  statusEl.textContent = "Iniciando cámara...";
+  camera
+    .start()
+    .then(() => {
+      statusEl.textContent = "Cámara activa";
+    })
+    .catch((err) => {
+      statusEl.textContent = "Error al acceder a la cámara";
+      console.error("Error de cámara:", err);
+    });
+}
+
+function stopARExperience() {
+  camera.stop();
+  statusEl.textContent = "Cámara detenida";
+}
+
+// Las hacemos accesibles globalmente para que app.js las use
+window.startARExperience = startARExperience;
+window.stopARExperience = stopARExperience;
