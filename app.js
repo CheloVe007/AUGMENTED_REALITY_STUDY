@@ -1,7 +1,3 @@
-// ============================================
-// AURA-3D — Navegacion del menu principal
-// ============================================
-
 const homeScreen = document.getElementById("home-screen");
 const arScreen = document.getElementById("ar-screen");
 const readingScreen = document.getElementById("reading-screen");

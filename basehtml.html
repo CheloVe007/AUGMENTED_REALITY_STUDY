@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,9 +7,6 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- ============================== -->
-    <!-- PANTALLA 1: MENU DE INICIO      -->
-    <!-- ============================== -->
     <div id="home-screen" class="screen active">
       <div class="home-content">
         <h1 class="logo">AURA-3D</h1>
@@ -63,9 +60,6 @@
       </div>
     </div>
 
-    <!-- ============================== -->
-    <!-- PANTALLA 2: QUIZ DE REALIDAD AUMENTADA -->
-    <!-- ============================== -->
     <div id="ar-screen" class="screen">
       <header class="ar-header">
         <button id="back-button" class="back-button">← Volver al menu</button>
@@ -101,9 +95,6 @@
       </main>
     </div>
 
-    <!-- ============================== -->
-    <!-- PANTALLA 3: CONCENTRACION DE LECTURA -->
-    <!-- ============================== -->
     <div id="reading-screen" class="screen">
       <header class="ar-header">
         <button id="reading-back-button" class="back-button">
@@ -184,7 +175,6 @@
       </main>
     </div>
 
-    <!-- Librerias de MediaPipe (vía CDN, versiones fijas y compatibles entre si) -->
     <script
       src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"
       crossorigin="anonymous"
@@ -202,7 +192,6 @@
       crossorigin="anonymous"
     ></script>
 
-    <!-- Three.js (version UMD, compatible con <script> normal) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
     <script src="scene3D.js"></script>

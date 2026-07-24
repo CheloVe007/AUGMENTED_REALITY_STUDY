@@ -1,7 +1,3 @@
-// ============================================
-// AURA-3D — Fase 1: Motor de Vision por Computador (Quiz AR)
-// ============================================
-
 if (typeof Hands === "undefined" || typeof Camera === "undefined") {
   document.getElementById("status").textContent =
     "ERROR: no se cargaron las librerias de MediaPipe (revisa la consola y tu conexion a internet)";

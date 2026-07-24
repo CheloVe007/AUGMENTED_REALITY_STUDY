@@ -1,7 +1,3 @@
-// ============================================
-// AURA-3D — Concentracion de Lectura
-// ============================================
-
 const readingVideo = document.getElementById("reading_video");
 const readingCanvas = document.getElementById("reading_canvas");
 const readingCtx = readingCanvas.getContext("2d");

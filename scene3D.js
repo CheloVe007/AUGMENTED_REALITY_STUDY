@@ -1,7 +1,3 @@
-// ============================================
-// AURA-3D — Fase 2: Entorno 3D e Interaccion
-// ============================================
-
 const threeCanvas = document.getElementById("three_canvas");
 
 const scene = new THREE.Scene();
