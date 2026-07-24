@@ -1,18 +1,16 @@
 // ============================================
-// AURA-3D — Fase 1: Motor de Visión por Computador
+// AURA-3D — Fase 1: Motor de Vision por Computador (Quiz AR)
 // ============================================
 
-// --- Verificación defensiva: ¿cargaron bien las librerías del CDN? ---
 if (typeof Hands === "undefined" || typeof Camera === "undefined") {
   document.getElementById("status").textContent =
-    "ERROR: no se cargaron las librerías de MediaPipe (revisa la consola y tu conexión a internet)";
+    "ERROR: no se cargaron las librerias de MediaPipe (revisa la consola y tu conexion a internet)";
   console.error(
-    "Hands o Camera no están definidos. Revisa que los <script> del CDN en index.html carguen correctamente (pestaña Network en F12).",
+    "Hands o Camera no estan definidos. Revisa que los <script> del CDN en index.html carguen correctamente (pestana Network en F12).",
   );
-  throw new Error("MediaPipe no cargó correctamente");
+  throw new Error("MediaPipe no cargo correctamente");
 }
 
-// --- Referencias al DOM ---
 const videoElement = document.getElementById("input_video");
 const canvasElement = document.getElementById("output_canvas");
 const canvasCtx = canvasElement.getContext("2d");
@@ -20,15 +18,12 @@ const statusEl = document.getElementById("status");
 const gestureEl = document.getElementById("gesture");
 const pinchDistanceEl = document.getElementById("pinch-distance");
 
-// --- Umbral para considerar "pellizco" (ajustable) ---
-const PINCH_THRESHOLD = 0.07; // distancia normalizada (0 a 1 aprox)
+const PINCH_THRESHOLD = 0.07;
 
-// --- Variables para el suavizado EMA ---
 const EMA_ALPHA = 0.4;
 let smoothedX = null;
 let smoothedY = null;
 
-// --- Configuración de MediaPipe Hands ---
 const hands = new Hands({
   locateFile: (file) => {
     return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -44,7 +39,6 @@ hands.setOptions({
 
 hands.onResults(onResults);
 
-// --- Función principal que se ejecuta en cada frame detectado ---
 function onResults(results) {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -83,7 +77,6 @@ function onResults(results) {
   canvasCtx.restore();
 }
 
-// --- Lógica de detección de gesto "Pellizco" ---
 function procesarGesto(landmarks) {
   const thumbTip = landmarks[4];
   const indexTip = landmarks[8];
@@ -95,7 +88,7 @@ function procesarGesto(landmarks) {
   pinchDistanceEl.textContent = distance.toFixed(3);
 
   const isPinching = distance < PINCH_THRESHOLD;
-  gestureEl.textContent = isPinching ? "PELLIZCO ✊" : "Mano abierta";
+  gestureEl.textContent = isPinching ? "PELLIZCO" : "Mano abierta";
   gestureEl.style.color = isPinching ? "#f87171" : "#4ade80";
 
   const rawX = (thumbTip.x + indexTip.x) / 2;
@@ -124,7 +117,6 @@ function procesarGesto(landmarks) {
   }
 }
 
-// --- Cámara: se crea una sola vez, pero NO arranca automáticamente ---
 const camera = new Camera(videoElement, {
   onFrame: async () => {
     await hands.send({ image: videoElement });
@@ -133,25 +125,23 @@ const camera = new Camera(videoElement, {
   height: 480,
 });
 
-// --- Funciones expuestas para que app.js controle cuándo prender/apagar la cámara ---
 function startARExperience() {
-  statusEl.textContent = "Iniciando cámara...";
+  statusEl.textContent = "Iniciando camara...";
   camera
     .start()
     .then(() => {
-      statusEl.textContent = "Cámara activa";
+      statusEl.textContent = "Camara activa";
     })
     .catch((err) => {
-      statusEl.textContent = "Error al acceder a la cámara";
-      console.error("Error de cámara:", err);
+      statusEl.textContent = "Error al acceder a la camara";
+      console.error("Error de camara:", err);
     });
 }
 
 function stopARExperience() {
   camera.stop();
-  statusEl.textContent = "Cámara detenida";
+  statusEl.textContent = "Camara detenida";
 }
 
-// Las hacemos accesibles globalmente para que app.js las use
 window.startARExperience = startARExperience;
 window.stopARExperience = stopARExperience;

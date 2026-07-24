@@ -1,15 +1,20 @@
 // ============================================
-// AURA-3D — Navegación del menú principal
+// AURA-3D — Navegacion del menu principal
 // ============================================
 
 const homeScreen = document.getElementById("home-screen");
 const arScreen = document.getElementById("ar-screen");
+const readingScreen = document.getElementById("reading-screen");
+
 const nameInput = document.getElementById("user-name");
 const homeError = document.getElementById("home-error");
+
 const playerNameDisplay = document.getElementById("player-name-display");
 const backButton = document.getElementById("back-button");
 
-// --- Clic en cualquiera de las tarjetas de modo ---
+const readingPlayerName = document.getElementById("reading-player-name");
+const readingBackButton = document.getElementById("reading-back-button");
+
 document.querySelectorAll(".mode-card").forEach((card) => {
   card.addEventListener("click", () => {
     const mode = card.dataset.mode;
@@ -17,6 +22,7 @@ document.querySelectorAll(".mode-card").forEach((card) => {
 
     if (!name) {
       homeError.textContent = "Por favor escribe tu nombre antes de continuar.";
+      homeError.style.color = "#f87171";
       nameInput.focus();
       return;
     }
@@ -25,19 +31,17 @@ document.querySelectorAll(".mode-card").forEach((card) => {
 
     if (mode === "ar-quiz") {
       goToARScreen(name);
+    } else if (mode === "reading") {
+      goToReadingScreen(name);
     } else {
-      // Los otros modos aún no existen: solo avisamos, sin romper nada
-      homeError.textContent =
-        "Este modo estará disponible próximamente. ¡Prueba el Quiz de Realidad Aumentada!";
+      homeError.textContent = "Este modo estara disponible proximamente.";
       homeError.style.color = "#facc15";
     }
   });
 });
 
-// --- Ir a la pantalla de AR ---
 function goToARScreen(name) {
   playerNameDisplay.textContent = name;
-
   homeScreen.classList.remove("active");
   arScreen.classList.add("active");
 
@@ -46,12 +50,26 @@ function goToARScreen(name) {
   }
 }
 
-// --- Botón "Volver al menú" ---
 backButton.addEventListener("click", () => {
   arScreen.classList.remove("active");
   homeScreen.classList.add("active");
 
   if (typeof stopARExperience === "function") {
     stopARExperience();
+  }
+});
+
+function goToReadingScreen(name) {
+  readingPlayerName.textContent = name;
+  homeScreen.classList.remove("active");
+  readingScreen.classList.add("active");
+}
+
+readingBackButton.addEventListener("click", () => {
+  readingScreen.classList.remove("active");
+  homeScreen.classList.add("active");
+
+  if (typeof stopReadingSession === "function") {
+    stopReadingSession();
   }
 });

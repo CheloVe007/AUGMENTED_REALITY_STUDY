@@ -8,17 +8,17 @@
   </head>
   <body>
     <!-- ============================== -->
-    <!-- PANTALLA 1: MENÚ DE INICIO      -->
+    <!-- PANTALLA 1: MENU DE INICIO      -->
     <!-- ============================== -->
     <div id="home-screen" class="screen active">
       <div class="home-content">
         <h1 class="logo">AURA-3D</h1>
         <p class="tagline">
-          Aprendizaje inmersivo con gestos, visión por computador y hardware
+          Aprendizaje inmersivo con gestos, vision por computador y hardware
         </p>
 
         <div class="name-input-group">
-          <label for="user-name">¿Cómo te llamas?</label>
+          <label for="user-name">Como te llamas?</label>
           <input
             type="text"
             id="user-name"
@@ -38,22 +38,24 @@
             >
           </button>
 
-          <button class="mode-card disabled" data-mode="reading">
+          <button class="mode-card" data-mode="reading">
             <span class="mode-icon">📖</span>
-            <span class="mode-title">Concentración de Lectura</span>
-            <span class="mode-desc">Próximamente</span>
+            <span class="mode-title">Concentracion de Lectura</span>
+            <span class="mode-desc"
+              >Lee un texto con verificacion de atencion</span
+            >
           </button>
 
           <button class="mode-card disabled" data-mode="exams">
             <span class="mode-icon">📝</span>
-            <span class="mode-title">Exámenes</span>
-            <span class="mode-desc">Próximamente</span>
+            <span class="mode-title">Examenes</span>
+            <span class="mode-desc">Proximamente</span>
           </button>
 
           <button class="mode-card disabled" data-mode="progress">
             <span class="mode-icon">📊</span>
             <span class="mode-title">Progreso</span>
-            <span class="mode-desc">Próximamente</span>
+            <span class="mode-desc">Proximamente</span>
           </button>
         </div>
 
@@ -66,7 +68,7 @@
     <!-- ============================== -->
     <div id="ar-screen" class="screen">
       <header class="ar-header">
-        <button id="back-button" class="back-button">← Volver al menú</button>
+        <button id="back-button" class="back-button">← Volver al menu</button>
         <div class="ar-title">
           <h1>AURA-3D</h1>
           <p>
@@ -78,14 +80,11 @@
       <main>
         <div id="panels">
           <div id="camera-container">
-            <!-- Video oculto: solo fuente de datos para MediaPipe -->
             <video id="input_video" autoplay playsinline></video>
-            <!-- Canvas visible: aquí dibujamos el video + los landmarks de la mano -->
             <canvas id="output_canvas" width="640" height="480"></canvas>
           </div>
 
           <div id="scene-container">
-            <!-- Aquí Three.js va a renderizar la escena 3D -->
             <canvas id="three_canvas" width="640" height="480"></canvas>
           </div>
         </div>
@@ -102,7 +101,90 @@
       </main>
     </div>
 
-    <!-- Librerías de MediaPipe Hands (vía CDN, versiones fijas y compatibles entre sí) -->
+    <!-- ============================== -->
+    <!-- PANTALLA 3: CONCENTRACION DE LECTURA -->
+    <!-- ============================== -->
+    <div id="reading-screen" class="screen">
+      <header class="ar-header">
+        <button id="reading-back-button" class="back-button">
+          ← Volver al menu
+        </button>
+        <div class="ar-title">
+          <h1>AURA-3D</h1>
+          <p>
+            Concentracion de Lectura — <span id="reading-player-name"></span>
+          </p>
+        </div>
+      </header>
+
+      <main class="reading-main">
+        <div id="reading-setup" class="reading-setup">
+          <label for="reading-text-input"
+            >Pega o escribe el texto de lectura</label
+          >
+          <textarea
+            id="reading-text-input"
+            rows="8"
+            placeholder="Pega aqui el texto que el estudiante debe leer..."
+          ></textarea>
+          <button
+            id="start-reading-button"
+            class="mode-card"
+            style="max-width: 260px; margin: 16px auto 0"
+          >
+            Comenzar lectura
+          </button>
+        </div>
+
+        <div id="reading-active" class="reading-active" style="display: none">
+          <div class="reading-panels">
+            <div id="reading-text-panel" class="reading-text-panel">
+              <div id="reading-text-content"></div>
+            </div>
+
+            <div class="reading-camera-panel">
+              <video id="reading_video" autoplay playsinline></video>
+              <canvas id="reading_canvas" width="240" height="180"></canvas>
+              <p id="reading-face-status" class="reading-face-status">
+                Buscando rostro...
+              </p>
+            </div>
+          </div>
+
+          <div id="reading-info-panel" class="info-panel-reading">
+            <p>Progreso de texto: <span id="scroll-progress">0%</span></p>
+            <p>Atencion detectada: <span id="attention-progress">0%</span></p>
+            <p>Lectura verificada: <span id="verified-progress">0%</span></p>
+          </div>
+
+          <button
+            id="finish-reading-button"
+            class="back-button"
+            style="margin-top: 16px"
+          >
+            Finalizar lectura
+          </button>
+        </div>
+
+        <div id="reading-summary" class="reading-summary" style="display: none">
+          <h2>Resumen de lectura</h2>
+          <p>Texto recorrido: <span id="summary-scroll">0%</span></p>
+          <p>Atencion promedio: <span id="summary-attention">0%</span></p>
+          <p class="summary-verified-highlight">
+            Lectura verificada: <span id="summary-verified">0%</span>
+          </p>
+          <button
+            id="reading-restart-button"
+            class="mode-card"
+            style="max-width: 260px; margin: 20px auto 0"
+          >
+            Leer otro texto
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Librerias de MediaPipe (vía CDN, versiones fijas y compatibles entre si) -->
     <script
       src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"
       crossorigin="anonymous"
@@ -115,13 +197,17 @@
       src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"
       crossorigin="anonymous"
     ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
+      crossorigin="anonymous"
+    ></script>
 
-    <!-- Three.js (versión UMD, compatible con <script> normal, sin necesidad de bundler) -->
+    <!-- Three.js (version UMD, compatible con <script> normal) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
-    <!-- Nuestro código: escena 3D, luego CV, y al final la navegación del menú -->
     <script src="scene3D.js"></script>
     <script src="main.js"></script>
+    <script src="reading.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
