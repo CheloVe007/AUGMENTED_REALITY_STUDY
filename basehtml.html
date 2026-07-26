@@ -1,17 +1,17 @@
 <!doctype html>
-<html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AURA-3D | Plataforma de Aprendizaje Inmersivo</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>AURA-3D</title>
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div id="home-screen" class="screen active">
       <div class="home-content">
         <h1 class="logo">AURA-3D</h1>
         <p class="tagline">
-          Aprendizaje inmersivo con gestos, vision por computador y hardware
+          Aprendizaje inmersivo con gestos y vision por computador
         </p>
 
         <div class="name-input-group">
@@ -30,29 +30,25 @@
           <button class="mode-card" data-mode="ar-quiz">
             <span class="mode-icon">🖐️</span>
             <span class="mode-title">Quiz Realidad Aumentada</span>
-            <span class="mode-desc"
-              >Resuelve retos moviendo objetos 3D con gestos</span
-            >
+            <span class="mode-desc">Mueve objetos 3D con gestos</span>
           </button>
 
           <button class="mode-card" data-mode="reading">
             <span class="mode-icon">📖</span>
             <span class="mode-title">Concentracion de Lectura</span>
-            <span class="mode-desc"
-              >Lee un texto con verificacion de atencion</span
-            >
+            <span class="mode-desc">Lee con verificacion de atencion</span>
           </button>
 
-          <button class="mode-card disabled" data-mode="exams">
+          <button class="mode-card" data-mode="exams">
             <span class="mode-icon">📝</span>
             <span class="mode-title">Examenes</span>
-            <span class="mode-desc">Proximamente</span>
+            <span class="mode-desc">Responde preguntas cortas</span>
           </button>
 
-          <button class="mode-card disabled" data-mode="progress">
+          <button class="mode-card" data-mode="progress">
             <span class="mode-icon">📊</span>
             <span class="mode-title">Progreso</span>
-            <span class="mode-desc">Proximamente</span>
+            <span class="mode-desc">Revisa tu historial</span>
           </button>
         </div>
 
@@ -61,13 +57,13 @@
     </div>
 
     <div id="ar-screen" class="screen">
-      <header class="ar-header">
-        <button id="back-button" class="back-button">← Volver al menu</button>
-        <div class="ar-title">
-          <h1>AURA-3D</h1>
-          <p>
-            Quiz de Realidad Aumentada — <span id="player-name-display"></span>
-          </p>
+      <header class="top-header">
+        <button class="back-button" data-back="ar-quiz">
+          ← Volver al menu
+        </button>
+        <div class="title-block">
+          <h1>Quiz Realidad Aumentada</h1>
+          <p><span id="ar-player-name"></span></p>
         </div>
       </header>
 
@@ -77,7 +73,6 @@
             <video id="input_video" autoplay playsinline></video>
             <canvas id="output_canvas" width="640" height="480"></canvas>
           </div>
-
           <div id="scene-container">
             <canvas id="three_canvas" width="640" height="480"></canvas>
           </div>
@@ -86,7 +81,6 @@
         <div id="info-panel">
           <p>Estado: <span id="status">Esperando inicio...</span></p>
           <p>Gesto: <span id="gesture">Ninguno</span></p>
-          <p>Distancia pellizco: <span id="pinch-distance">-</span></p>
           <p>
             Quest:
             <span id="quest-status">Arrastra el cubo a la zona verde</span>
@@ -96,33 +90,25 @@
     </div>
 
     <div id="reading-screen" class="screen">
-      <header class="ar-header">
-        <button id="reading-back-button" class="back-button">
+      <header class="top-header">
+        <button class="back-button" data-back="reading">
           ← Volver al menu
         </button>
-        <div class="ar-title">
-          <h1>AURA-3D</h1>
-          <p>
-            Concentracion de Lectura — <span id="reading-player-name"></span>
-          </p>
+        <div class="title-block">
+          <h1>Concentracion de Lectura</h1>
+          <p><span id="reading-player-name"></span></p>
         </div>
       </header>
 
       <main class="reading-main">
         <div id="reading-setup" class="reading-setup">
-          <label for="reading-text-input"
-            >Pega o escribe el texto de lectura</label
-          >
+          <label for="reading-text-input">Pega el texto de lectura</label>
           <textarea
             id="reading-text-input"
             rows="8"
-            placeholder="Pega aqui el texto que el estudiante debe leer..."
+            placeholder="Pega aqui el texto..."
           ></textarea>
-          <button
-            id="start-reading-button"
-            class="mode-card"
-            style="max-width: 260px; margin: 16px auto 0"
-          >
+          <button id="start-reading-button" class="mode-card wide-btn">
             Comenzar lectura
           </button>
         </div>
@@ -132,7 +118,6 @@
             <div id="reading-text-panel" class="reading-text-panel">
               <div id="reading-text-content"></div>
             </div>
-
             <div class="reading-camera-panel">
               <video id="reading_video" autoplay playsinline></video>
               <canvas id="reading_canvas" width="240" height="180"></canvas>
@@ -142,36 +127,68 @@
             </div>
           </div>
 
-          <div id="reading-info-panel" class="info-panel-reading">
-            <p>Progreso de texto: <span id="scroll-progress">0%</span></p>
-            <p>Atencion detectada: <span id="attention-progress">0%</span></p>
-            <p>Lectura verificada: <span id="verified-progress">0%</span></p>
+          <div class="info-panel-reading">
+            <p>Texto: <span id="scroll-progress">0%</span></p>
+            <p>Atencion: <span id="attention-progress">0%</span></p>
+            <p>Verificado: <span id="verified-progress">0%</span></p>
           </div>
 
-          <button
-            id="finish-reading-button"
-            class="back-button"
-            style="margin-top: 16px"
-          >
+          <button id="finish-reading-button" class="back-button wide-btn">
             Finalizar lectura
           </button>
         </div>
 
         <div id="reading-summary" class="reading-summary" style="display: none">
           <h2>Resumen de lectura</h2>
-          <p>Texto recorrido: <span id="summary-scroll">0%</span></p>
-          <p>Atencion promedio: <span id="summary-attention">0%</span></p>
-          <p class="summary-verified-highlight">
-            Lectura verificada: <span id="summary-verified">0%</span>
+          <p>
+            Lectura verificada:
+            <span id="summary-verified" class="highlight">0%</span>
           </p>
-          <button
-            id="reading-restart-button"
-            class="mode-card"
-            style="max-width: 260px; margin: 20px auto 0"
-          >
+          <button id="reading-restart-button" class="mode-card wide-btn">
             Leer otro texto
           </button>
         </div>
+      </main>
+    </div>
+
+    <div id="exams-screen" class="screen">
+      <header class="top-header">
+        <button class="back-button" data-back="exams">← Volver al menu</button>
+        <div class="title-block">
+          <h1>Examenes</h1>
+          <p><span id="exam-player-name"></span></p>
+        </div>
+      </header>
+
+      <main class="exams-main">
+        <div id="exam-question-box" class="exam-box">
+          <p id="exam-question-text">Cargando pregunta...</p>
+          <div id="exam-options" class="exam-options"></div>
+        </div>
+
+        <div id="exam-summary" class="exam-box" style="display: none">
+          <h2>Resultado</h2>
+          <p>Puntaje: <span id="exam-score" class="highlight">0%</span></p>
+          <button id="exam-restart-button" class="mode-card wide-btn">
+            Intentar de nuevo
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <div id="progress-screen" class="screen">
+      <header class="top-header">
+        <button class="back-button" data-back="progress">
+          ← Volver al menu
+        </button>
+        <div class="title-block">
+          <h1>Progreso</h1>
+          <p><span id="progress-player-name"></span></p>
+        </div>
+      </header>
+
+      <main class="progress-main">
+        <div id="progress-list" class="progress-list"></div>
       </main>
     </div>
 
@@ -191,12 +208,11 @@
       src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
       crossorigin="anonymous"
     ></script>
-
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
-    <script src="scene3D.js"></script>
-    <script src="main.js"></script>
-    <script src="reading.js"></script>
-    <script src="app.js"></script>
+    <script src="js/vision3d.js"></script>
+    <script src="js/reading.js"></script>
+    <script src="js/exams.js"></script>
+    <script src="js/app.js"></script>
   </body>
 </html>
