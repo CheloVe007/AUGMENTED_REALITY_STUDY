@@ -1,4 +1,12 @@
-let hands, camera, scene, camera3D, renderer, draggableCube, cubeMaterial, targetZone, pointerMesh;
+let hands,
+  camera,
+  scene,
+  camera3D,
+  renderer,
+  draggableCube,
+  cubeMaterial,
+  targetZone,
+  pointerMesh;
 let isDragging = false;
 let renderLoopActive = false;
 const EMA_ALPHA = 0.4;
@@ -7,33 +15,47 @@ let smoothedX = null;
 let smoothedY = null;
 
 function initHands() {
-  const videoElement = document.getElementById('input_video');
-  const canvasElement = document.getElementById('output_canvas');
-  const canvasCtx = canvasElement.getContext('2d');
-  const statusEl = document.getElementById('status');
-  const gestureEl = document.getElementById('gesture');
+  const videoElement = document.getElementById("input_video");
+  const canvasElement = document.getElementById("output_canvas");
+  const canvasCtx = canvasElement.getContext("2d");
+  const statusEl = document.getElementById("status");
+  const gestureEl = document.getElementById("gesture");
 
   hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    locateFile: (file) =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
   });
 
   hands.setOptions({
     maxNumHands: 1,
     modelComplexity: 1,
     minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7
+    minTrackingConfidence: 0.7,
   });
 
   hands.onResults((results) => {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(
+      results.image,
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height,
+    );
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      statusEl.textContent = 'Mano detectada';
+      statusEl.textContent = "Mano detectada";
       const landmarks = results.multiHandLandmarks[0];
-      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#38bdf8', lineWidth: 2 });
-      drawLandmarks(canvasCtx, landmarks, { color: '#4ade80', lineWidth: 1, radius: 3 });
+      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+        color: "#38bdf8",
+        lineWidth: 2,
+      });
+      drawLandmarks(canvasCtx, landmarks, {
+        color: "#4ade80",
+        lineWidth: 1,
+        radius: 3,
+      });
 
       const thumbTip = landmarks[4];
       const indexTip = landmarks[8];
@@ -41,8 +63,8 @@ function initHands() {
       const dy = thumbTip.y - indexTip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const isPinching = distance < PINCH_THRESHOLD;
-      gestureEl.textContent = isPinching ? 'PELLIZCO' : 'Mano abierta';
-      gestureEl.style.color = isPinching ? '#f87171' : '#4ade80';
+      gestureEl.textContent = isPinching ? "PELLIZCO" : "Mano abierta";
+      gestureEl.style.color = isPinching ? "#f87171" : "#4ade80";
 
       const rawX = (thumbTip.x + indexTip.x) / 2;
       const rawY = (thumbTip.y + indexTip.y) / 2;
@@ -58,13 +80,15 @@ function initHands() {
       const py = smoothedY * canvasElement.height;
       canvasCtx.beginPath();
       canvasCtx.arc(px, py, 10, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = isPinching ? 'rgba(248,113,113,0.8)' : 'rgba(56,189,248,0.8)';
+      canvasCtx.fillStyle = isPinching
+        ? "rgba(248,113,113,0.8)"
+        : "rgba(56,189,248,0.8)";
       canvasCtx.fill();
 
       updatePointer3D(smoothedX, smoothedY, isPinching);
     } else {
-      statusEl.textContent = 'Buscando mano...';
-      gestureEl.textContent = 'Ninguno';
+      statusEl.textContent = "Buscando mano...";
+      gestureEl.textContent = "Ninguno";
       smoothedX = null;
       smoothedY = null;
     }
@@ -72,14 +96,16 @@ function initHands() {
   });
 
   camera = new Camera(videoElement, {
-    onFrame: async () => { await hands.send({ image: videoElement }); },
+    onFrame: async () => {
+      await hands.send({ image: videoElement });
+    },
     width: 640,
-    height: 480
+    height: 480,
   });
 }
 
 function initScene() {
-  const threeCanvas = document.getElementById('three_canvas');
+  const threeCanvas = document.getElementById("three_canvas");
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0f172a);
 
@@ -95,17 +121,31 @@ function initScene() {
   scene.add(dirLight);
 
   cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
-  draggableCube = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), cubeMaterial);
+  draggableCube = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.8, 0.8),
+    cubeMaterial,
+  );
   draggableCube.position.set(-2, 0, 0);
   scene.add(draggableCube);
 
-  const targetMaterial = new THREE.MeshBasicMaterial({ color: 0x4ade80, wireframe: true, transparent: true, opacity: 0.6 });
-  targetZone = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), targetMaterial);
+  const targetMaterial = new THREE.MeshBasicMaterial({
+    color: 0x4ade80,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.6,
+  });
+  targetZone = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.2, 1.2),
+    targetMaterial,
+  );
   targetZone.position.set(2, 0, 0);
   scene.add(targetZone);
 
   const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
-  pointerMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), pointerMaterial);
+  pointerMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 16, 16),
+    pointerMaterial,
+  );
   scene.add(pointerMesh);
 }
 
@@ -138,18 +178,18 @@ function updatePointer3D(nx, ny, isPinching) {
 
 function checkQuestCompletion() {
   const distToTarget = draggableCube.position.distanceTo(targetZone.position);
-  const questStatusEl = document.getElementById('quest-status');
+  const questStatusEl = document.getElementById("quest-status");
 
   if (distToTarget < 0.8) {
     cubeMaterial.color.set(0x4ade80);
-    questStatusEl.textContent = 'CORRECTO!';
-    questStatusEl.style.color = '#4ade80';
-    if (typeof window.logProgress === 'function') {
-      window.logProgress('Quiz Realidad Aumentada', 'Completado');
+    questStatusEl.textContent = "CORRECTO!";
+    questStatusEl.style.color = "#4ade80";
+    if (typeof window.logProgress === "function") {
+      window.logProgress("Quiz Realidad Aumentada", "Completado");
     }
   } else {
-    questStatusEl.textContent = 'Aun no. Sigue intentando.';
-    questStatusEl.style.color = '#f87171';
+    questStatusEl.textContent = "Aun no. Sigue intentando.";
+    questStatusEl.style.color = "#f87171";
   }
 }
 
@@ -162,22 +202,26 @@ function renderLoop() {
 }
 
 function startARExperience() {
-  const statusEl = document.getElementById('status');
+  const statusEl = document.getElementById("status");
   if (!hands) initHands();
   if (!scene) initScene();
 
   draggableCube.position.set(-2, 0, 0);
   cubeMaterial.color.set(0x38bdf8);
-  document.getElementById('quest-status').textContent = 'Arrastra el cubo a la zona verde';
+  document.getElementById("quest-status").textContent =
+    "Arrastra el cubo a la zona verde";
 
   renderLoopActive = true;
   renderLoop();
 
-  statusEl.textContent = 'Iniciando camara...';
-  camera.start()
-    .then(() => { statusEl.textContent = 'Camara activa'; })
+  statusEl.textContent = "Iniciando camara...";
+  camera
+    .start()
+    .then(() => {
+      statusEl.textContent = "Camara activa";
+    })
     .catch((err) => {
-      statusEl.textContent = 'Error al acceder a la camara';
+      statusEl.textContent = "Error al acceder a la camara";
       console.error(err);
     });
 }
@@ -185,7 +229,7 @@ function startARExperience() {
 function stopARExperience() {
   if (camera) camera.stop();
   renderLoopActive = false;
-  document.getElementById('status').textContent = 'Camara detenida';
+  document.getElementById("status").textContent = "Camara detenida";
 }
 
 window.startARExperience = startARExperience;
