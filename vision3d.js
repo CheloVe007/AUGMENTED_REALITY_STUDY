@@ -1,18 +1,34 @@
-let hands,
-  camera,
-  scene,
-  camera3D,
-  renderer,
-  draggableCube,
-  cubeMaterial,
-  targetZone,
-  pointerMesh;
-let isDragging = false;
+let hands, camera, scene, camera3D, renderer, pointerMesh;
 let renderLoopActive = false;
 const EMA_ALPHA = 0.4;
 const PINCH_THRESHOLD = 0.07;
 let smoothedX = null;
 let smoothedY = null;
+
+let optionMeshes = [];
+let targetSlotMesh;
+let draggedMesh = null;
+let currentQuestionIndex = 0;
+let quizScore = 0;
+let questionLocked = false;
+
+function makeCardTexture(text, borderColor) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(0, 0, 256, 128);
+  ctx.strokeStyle = borderColor || "#38bdf8";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, 250, 122);
+  ctx.fillStyle = "#f1f5f9";
+  ctx.font = "bold 28px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 128, 64);
+  return new THREE.CanvasTexture(canvas);
+}
 
 function initHands() {
   const videoElement = document.getElementById("input_video");
@@ -115,38 +131,66 @@ function initScene() {
   renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
   renderer.setSize(640, 480);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(3, 4, 5);
-  scene.add(dirLight);
-
-  cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
-  draggableCube = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.8, 0.8),
-    cubeMaterial,
-  );
-  draggableCube.position.set(-2, 0, 0);
-  scene.add(draggableCube);
-
-  const targetMaterial = new THREE.MeshBasicMaterial({
-    color: 0x4ade80,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.6,
-  });
-  targetZone = new THREE.Mesh(
-    new THREE.BoxGeometry(1.2, 1.2, 1.2),
-    targetMaterial,
-  );
-  targetZone.position.set(2, 0, 0);
-  scene.add(targetZone);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
   const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
   pointerMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.15, 16, 16),
+    new THREE.SphereGeometry(0.12, 16, 16),
     pointerMaterial,
   );
   scene.add(pointerMesh);
+}
+
+function clearQuestionObjects() {
+  optionMeshes.forEach((mesh) => scene.remove(mesh));
+  optionMeshes = [];
+  if (targetSlotMesh) scene.remove(targetSlotMesh);
+  draggedMesh = null;
+}
+
+function loadQuestion(index) {
+  clearQuestionObjects();
+  questionLocked = false;
+
+  const question = QUESTION_BANK[index];
+  document.getElementById("question-text").textContent = question.question;
+  document.getElementById("question-counter").textContent =
+    `Pregunta ${index + 1} de ${QUESTION_BANK.length}`;
+  document.getElementById("quest-status").textContent =
+    "Arrastra la respuesta correcta al espacio en blanco";
+  document.getElementById("quest-status").style.color = "#94a3b8";
+
+  targetSlotMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.6, 0.8),
+    new THREE.MeshBasicMaterial({
+      map: makeCardTexture("?", "#facc15"),
+      transparent: true,
+    }),
+  );
+  targetSlotMesh.position.set(0, 1.4, 0);
+  scene.add(targetSlotMesh);
+
+  const n = question.options.length;
+  const spacing = 1.7;
+  const startX = -((n - 1) * spacing) / 2;
+
+  question.options.forEach((optionText, i) => {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.4, 0.7),
+      new THREE.MeshBasicMaterial({
+        map: makeCardTexture(optionText, "#38bdf8"),
+        transparent: true,
+      }),
+    );
+    const posX = startX + i * spacing;
+    const posY = -1.6;
+    mesh.position.set(posX, posY, 0);
+    mesh.userData.text = optionText;
+    mesh.userData.isCorrect = optionText === question.answer;
+    mesh.userData.originalPosition = new THREE.Vector3(posX, posY, 0);
+    scene.add(mesh);
+    optionMeshes.push(mesh);
+  });
 }
 
 function normalizedToWorldPoint(nx, ny) {
@@ -164,40 +208,82 @@ function updatePointer3D(nx, ny, isPinching) {
   pointerMesh.position.copy(worldPoint);
   pointerMesh.material.color.set(isPinching ? 0xf87171 : 0xf1f5f9);
 
-  const distToCube = worldPoint.distanceTo(draggableCube.position);
-  const GRAB_RADIUS = 1.0;
+  if (questionLocked) return;
+
+  const GRAB_RADIUS = 1.1;
 
   if (isPinching) {
-    if (!isDragging && distToCube < GRAB_RADIUS) isDragging = true;
-    if (isDragging) draggableCube.position.copy(worldPoint);
-  } else if (isDragging) {
-    isDragging = false;
-    checkQuestCompletion();
+    if (!draggedMesh) {
+      let closest = null;
+      let closestDist = GRAB_RADIUS;
+      optionMeshes.forEach((mesh) => {
+        const dist = worldPoint.distanceTo(mesh.position);
+        if (dist < closestDist) {
+          closest = mesh;
+          closestDist = dist;
+        }
+      });
+      draggedMesh = closest;
+    }
+    if (draggedMesh) {
+      draggedMesh.position.copy(worldPoint);
+    }
+  } else if (draggedMesh) {
+    checkDrop(draggedMesh);
+    draggedMesh = null;
   }
 }
 
-function checkQuestCompletion() {
-  const distToTarget = draggableCube.position.distanceTo(targetZone.position);
+function checkDrop(mesh) {
+  const distToSlot = mesh.position.distanceTo(targetSlotMesh.position);
   const questStatusEl = document.getElementById("quest-status");
 
-  if (distToTarget < 0.8) {
-    cubeMaterial.color.set(0x4ade80);
-    questStatusEl.textContent = "CORRECTO!";
-    questStatusEl.style.color = "#4ade80";
-    if (typeof window.logProgress === "function") {
-      window.logProgress("Quiz Realidad Aumentada", "Completado");
+  if (distToSlot < 1.0) {
+    if (mesh.userData.isCorrect) {
+      questionLocked = true;
+      mesh.position.copy(targetSlotMesh.position);
+      mesh.material.map = makeCardTexture(mesh.userData.text, "#4ade80");
+      mesh.material.needsUpdate = true;
+      questStatusEl.textContent = "CORRECTO!";
+      questStatusEl.style.color = "#4ade80";
+      quizScore++;
+      setTimeout(goToNextQuestion, 1200);
+    } else {
+      questStatusEl.textContent = "Incorrecto, intenta con otra palabra";
+      questStatusEl.style.color = "#f87171";
+      mesh.position.copy(mesh.userData.originalPosition);
     }
   } else {
-    questStatusEl.textContent = "Aun no. Sigue intentando.";
-    questStatusEl.style.color = "#f87171";
+    mesh.position.copy(mesh.userData.originalPosition);
+  }
+}
+
+function goToNextQuestion() {
+  currentQuestionIndex++;
+  if (currentQuestionIndex < QUESTION_BANK.length) {
+    loadQuestion(currentQuestionIndex);
+  } else {
+    finishQuiz();
+  }
+}
+
+function finishQuiz() {
+  clearQuestionObjects();
+  const pct = Math.round((quizScore / QUESTION_BANK.length) * 100);
+  document.getElementById("question-banner").style.display = "none";
+  document.getElementById("panels").style.display = "none";
+  document.getElementById("info-panel").style.display = "none";
+  document.getElementById("quiz-summary").style.display = "block";
+  document.getElementById("quiz-score").textContent = `${pct}%`;
+
+  if (typeof window.logProgress === "function") {
+    window.logProgress("Quiz Realidad Aumentada", `${pct}%`);
   }
 }
 
 function renderLoop() {
   if (!renderLoopActive) return;
   requestAnimationFrame(renderLoop);
-  draggableCube.rotation.y += 0.005;
-  targetZone.rotation.y += 0.003;
   renderer.render(scene, camera3D);
 }
 
@@ -206,10 +292,14 @@ function startARExperience() {
   if (!hands) initHands();
   if (!scene) initScene();
 
-  draggableCube.position.set(-2, 0, 0);
-  cubeMaterial.color.set(0x38bdf8);
-  document.getElementById("quest-status").textContent =
-    "Arrastra el cubo a la zona verde";
+  document.getElementById("question-banner").style.display = "block";
+  document.getElementById("panels").style.display = "flex";
+  document.getElementById("info-panel").style.display = "flex";
+  document.getElementById("quiz-summary").style.display = "none";
+
+  currentQuestionIndex = 0;
+  quizScore = 0;
+  loadQuestion(0);
 
   renderLoopActive = true;
   renderLoop();
@@ -231,6 +321,10 @@ function stopARExperience() {
   renderLoopActive = false;
   document.getElementById("status").textContent = "Camara detenida";
 }
+
+document.getElementById("quiz-restart-button").addEventListener("click", () => {
+  startARExperience();
+});
 
 window.startARExperience = startARExperience;
 window.stopARExperience = stopARExperience;

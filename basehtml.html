@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AURA-3D</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div id="home-screen" class="screen active">
@@ -68,6 +68,11 @@
       </header>
 
       <main>
+        <div id="question-banner">
+          <p id="question-counter">Pregunta 1 de 1</p>
+          <h2 id="question-text">Cargando pregunta...</h2>
+        </div>
+
         <div id="panels">
           <div id="camera-container">
             <video id="input_video" autoplay playsinline></video>
@@ -82,9 +87,19 @@
           <p>Estado: <span id="status">Esperando inicio...</span></p>
           <p>Gesto: <span id="gesture">Ninguno</span></p>
           <p>
-            Quest:
-            <span id="quest-status">Arrastra el cubo a la zona verde</span>
+            Resultado:
+            <span id="quest-status"
+              >Arrastra la respuesta correcta al espacio en blanco</span
+            >
           </p>
+        </div>
+
+        <div id="quiz-summary" class="exam-box" style="display: none">
+          <h2>Quiz completado</h2>
+          <p>Puntaje: <span id="quiz-score" class="highlight">0%</span></p>
+          <button id="quiz-restart-button" class="mode-card wide-btn">
+            Intentar de nuevo
+          </button>
         </div>
       </main>
     </div>
@@ -210,9 +225,10 @@
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
-    <script src="vision3d.js"></script>
-    <script src="reading.js"></script>
-    <script src="exams.js"></script>
-    <script src="app.js"></script>
+    <script src="assets/questions.js"></script>
+    <script src="js/vision3d.js"></script>
+    <script src="js/reading.js"></script>
+    <script src="js/exams.js"></script>
+    <script src="js/app.js"></script>
   </body>
 </html>

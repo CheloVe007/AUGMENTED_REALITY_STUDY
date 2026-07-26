@@ -152,6 +152,27 @@ body {
   margin-bottom: 20px;
 }
 
+#question-banner {
+  width: 100%;
+  max-width: 984px;
+  text-align: center;
+  margin-bottom: 16px;
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+#question-counter {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+#question-text {
+  color: #f1f5f9;
+  font-size: 1.15rem;
+}
+
 .back-button {
   background: #1e293b;
   border: 2px solid #334155;
