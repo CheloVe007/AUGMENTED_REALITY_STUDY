@@ -68,7 +68,6 @@ document.querySelectorAll(".mode-card[data-mode]").forEach((card) => {
     currentPlayerName = name;
 
     if (mode === "ar-quiz") {
-      document.getElementById("ar-player-name").textContent = name;
       showScreen("ar-quiz");
       startARExperience();
     } else if (mode === "reading") {

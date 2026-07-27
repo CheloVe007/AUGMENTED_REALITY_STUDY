@@ -95,7 +95,7 @@ function initHands() {
       const px = smoothedX * canvasElement.width;
       const py = smoothedY * canvasElement.height;
       canvasCtx.beginPath();
-      canvasCtx.arc(px, py, 10, 0, 2 * Math.PI);
+      canvasCtx.arc(px, py, canvasElement.width * 0.015, 0, 2 * Math.PI);
       canvasCtx.fillStyle = isPinching
         ? "rgba(248,113,113,0.8)"
         : "rgba(56,189,248,0.8)";
@@ -123,15 +123,18 @@ function initHands() {
 function initScene() {
   const threeCanvas = document.getElementById("three_canvas");
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0f172a);
 
-  camera3D = new THREE.PerspectiveCamera(50, 640 / 480, 0.1, 100);
+  camera3D = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
   camera3D.position.set(0, 0, 6);
 
-  renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
-  renderer.setSize(640, 480);
+  renderer = new THREE.WebGLRenderer({
+    canvas: threeCanvas,
+    antialias: true,
+    alpha: true,
+  });
+  renderer.setClearColor(0x000000, 0);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
   const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
   pointerMesh = new THREE.Mesh(
@@ -139,6 +142,34 @@ function initScene() {
     pointerMaterial,
   );
   scene.add(pointerMesh);
+}
+
+function getVisibleSizeAtZ(z) {
+  const vFOV = (camera3D.fov * Math.PI) / 180;
+  const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera3D.position.z - z);
+  const width = height * camera3D.aspect;
+  return { width, height };
+}
+
+function resizeARViewport() {
+  const viewport = document.getElementById("ar-viewport");
+  const w = viewport.clientWidth;
+  const h = viewport.clientHeight;
+  if (w === 0 || h === 0) return;
+
+  const outputCanvas = document.getElementById("output_canvas");
+  outputCanvas.width = w;
+  outputCanvas.height = h;
+
+  if (renderer) {
+    renderer.setSize(w, h, false);
+    camera3D.aspect = w / h;
+    camera3D.updateProjectionMatrix();
+  }
+
+  if (optionMeshes.length > 0 || targetSlotMesh) {
+    loadQuestion(currentQuestionIndex);
+  }
 }
 
 function clearQuestionObjects() {
@@ -157,37 +188,43 @@ function loadQuestion(index) {
   document.getElementById("question-counter").textContent =
     `Pregunta ${index + 1} de ${QUESTION_BANK.length}`;
   document.getElementById("quest-status").textContent =
-    "Arrastra la respuesta correcta al espacio en blanco";
+    "Arrastra la respuesta correcta";
   document.getElementById("quest-status").style.color = "#94a3b8";
 
+  const visible = getVisibleSizeAtZ(0);
+  const usableWidth = visible.width * 0.75;
+  const topY = visible.height * 0.28;
+  const bottomY = -visible.height * 0.3;
+
+  const n = question.options.length;
+  const spacing = usableWidth / n;
+  const cardWidth = Math.min(spacing * 0.85, visible.width * 0.28);
+  const cardHeight = cardWidth * 0.5;
+  const startX = -usableWidth / 2 + spacing / 2;
+
   targetSlotMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.6, 0.8),
+    new THREE.PlaneGeometry(cardWidth * 1.1, cardHeight * 1.1),
     new THREE.MeshBasicMaterial({
       map: makeCardTexture("?", "#facc15"),
       transparent: true,
     }),
   );
-  targetSlotMesh.position.set(0, 1.4, 0);
+  targetSlotMesh.position.set(0, topY, 0);
   scene.add(targetSlotMesh);
-
-  const n = question.options.length;
-  const spacing = 1.7;
-  const startX = -((n - 1) * spacing) / 2;
 
   question.options.forEach((optionText, i) => {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.4, 0.7),
+      new THREE.PlaneGeometry(cardWidth, cardHeight),
       new THREE.MeshBasicMaterial({
         map: makeCardTexture(optionText, "#38bdf8"),
         transparent: true,
       }),
     );
     const posX = startX + i * spacing;
-    const posY = -1.6;
-    mesh.position.set(posX, posY, 0);
+    mesh.position.set(posX, bottomY, 0);
     mesh.userData.text = optionText;
     mesh.userData.isCorrect = optionText === question.answer;
-    mesh.userData.originalPosition = new THREE.Vector3(posX, posY, 0);
+    mesh.userData.originalPosition = new THREE.Vector3(posX, bottomY, 0);
     scene.add(mesh);
     optionMeshes.push(mesh);
   });
@@ -210,7 +247,8 @@ function updatePointer3D(nx, ny, isPinching) {
 
   if (questionLocked) return;
 
-  const GRAB_RADIUS = 1.1;
+  const visible = getVisibleSizeAtZ(0);
+  const GRAB_RADIUS = visible.width * 0.18;
 
   if (isPinching) {
     if (!draggedMesh) {
@@ -236,9 +274,11 @@ function updatePointer3D(nx, ny, isPinching) {
 
 function checkDrop(mesh) {
   const distToSlot = mesh.position.distanceTo(targetSlotMesh.position);
+  const visible = getVisibleSizeAtZ(0);
+  const DROP_RADIUS = visible.width * 0.16;
   const questStatusEl = document.getElementById("quest-status");
 
-  if (distToSlot < 1.0) {
+  if (distToSlot < DROP_RADIUS) {
     if (mesh.userData.isCorrect) {
       questionLocked = true;
       mesh.position.copy(targetSlotMesh.position);
@@ -270,10 +310,7 @@ function goToNextQuestion() {
 function finishQuiz() {
   clearQuestionObjects();
   const pct = Math.round((quizScore / QUESTION_BANK.length) * 100);
-  document.getElementById("question-banner").style.display = "none";
-  document.getElementById("panels").style.display = "none";
-  document.getElementById("info-panel").style.display = "none";
-  document.getElementById("quiz-summary").style.display = "block";
+  document.getElementById("quiz-summary").style.display = "flex";
   document.getElementById("quiz-score").textContent = `${pct}%`;
 
   if (typeof window.logProgress === "function") {
@@ -287,15 +324,20 @@ function renderLoop() {
   renderer.render(scene, camera3D);
 }
 
+function handleViewportResize() {
+  resizeARViewport();
+}
+
 function startARExperience() {
   const statusEl = document.getElementById("status");
   if (!hands) initHands();
   if (!scene) initScene();
 
-  document.getElementById("question-banner").style.display = "block";
-  document.getElementById("panels").style.display = "flex";
-  document.getElementById("info-panel").style.display = "flex";
   document.getElementById("quiz-summary").style.display = "none";
+
+  resizeARViewport();
+  window.addEventListener("resize", handleViewportResize);
+  window.addEventListener("orientationchange", handleViewportResize);
 
   currentQuestionIndex = 0;
   quizScore = 0;
@@ -319,6 +361,8 @@ function startARExperience() {
 function stopARExperience() {
   if (camera) camera.stop();
   renderLoopActive = false;
+  window.removeEventListener("resize", handleViewportResize);
+  window.removeEventListener("orientationchange", handleViewportResize);
   document.getElementById("status").textContent = "Camara detenida";
 }
 

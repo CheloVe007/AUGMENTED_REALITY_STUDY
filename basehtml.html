@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AURA-3D</title>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="home-screen" class="screen active">
@@ -57,51 +57,36 @@
     </div>
 
     <div id="ar-screen" class="screen">
-      <header class="top-header">
-        <button class="back-button" data-back="ar-quiz">
-          ← Volver al menu
-        </button>
-        <div class="title-block">
-          <h1>Quiz Realidad Aumentada</h1>
-          <p><span id="ar-player-name"></span></p>
-        </div>
-      </header>
+      <div id="ar-viewport">
+        <video id="input_video" autoplay playsinline></video>
+        <canvas id="output_canvas"></canvas>
+        <canvas id="three_canvas"></canvas>
 
-      <main>
-        <div id="question-banner">
-          <p id="question-counter">Pregunta 1 de 1</p>
-          <h2 id="question-text">Cargando pregunta...</h2>
-        </div>
-
-        <div id="panels">
-          <div id="camera-container">
-            <video id="input_video" autoplay playsinline></video>
-            <canvas id="output_canvas" width="640" height="480"></canvas>
-          </div>
-          <div id="scene-container">
-            <canvas id="three_canvas" width="640" height="480"></canvas>
+        <div id="ar-top-overlay">
+          <button class="back-button" data-back="ar-quiz">← Menu</button>
+          <div id="question-banner">
+            <p id="question-counter">Pregunta 1 de 1</p>
+            <h2 id="question-text">Cargando pregunta...</h2>
           </div>
         </div>
 
-        <div id="info-panel">
+        <div id="ar-bottom-overlay">
           <p>Estado: <span id="status">Esperando inicio...</span></p>
           <p>Gesto: <span id="gesture">Ninguno</span></p>
           <p>
             Resultado:
-            <span id="quest-status"
-              >Arrastra la respuesta correcta al espacio en blanco</span
-            >
+            <span id="quest-status">Arrastra la respuesta correcta</span>
           </p>
         </div>
 
-        <div id="quiz-summary" class="exam-box" style="display: none">
+        <div id="quiz-summary" style="display: none">
           <h2>Quiz completado</h2>
           <p>Puntaje: <span id="quiz-score" class="highlight">0%</span></p>
           <button id="quiz-restart-button" class="mode-card wide-btn">
             Intentar de nuevo
           </button>
         </div>
-      </main>
+      </div>
     </div>
 
     <div id="reading-screen" class="screen">
@@ -225,10 +210,10 @@
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 
-    <script src="assets/questions.js"></script>
-    <script src="js/vision3d.js"></script>
-    <script src="js/reading.js"></script>
-    <script src="js/exams.js"></script>
-    <script src="js/app.js"></script>
+    <script src="assets/question.js"></script>
+    <script src="vision3d.js"></script>
+    <script src="reading.js"></script>
+    <script src="exams.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
