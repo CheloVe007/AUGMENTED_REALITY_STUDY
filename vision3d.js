@@ -1,35 +1,214 @@
 let hands, camera, scene, camera3D, renderer, pointerMesh;
 let renderLoopActive = false;
-const EMA_ALPHA = 0.4;
-const PINCH_THRESHOLD = 0.07;
+const EMA_ALPHA = 0.35;
+const PINCH_ENTER = 0.055;
+const PINCH_EXIT = 0.085;
+let isPinching = false;
 let smoothedX = null;
 let smoothedY = null;
+let handStableFrames = 0;
+let handSeenLastFrame = false;
 
 let optionMeshes = [];
 let targetSlotMesh;
+let hoveredMesh = null;
 let draggedMesh = null;
 let currentQuestionIndex = 0;
 let quizScore = 0;
 let questionLocked = false;
+let inTransition = false;
 
-function makeCardTexture(text, borderColor) {
+// ---- small tween manager, stepped every render frame ----
+let activeAnimations = [];
+function animate(duration, onUpdate, onComplete) {
+  activeAnimations.push({
+    start: performance.now(),
+    duration,
+    onUpdate,
+    onComplete,
+  });
+}
+function stepAnimations(now) {
+  activeAnimations = activeAnimations.filter((anim) => {
+    const t = Math.min(1, (now - anim.start) / anim.duration);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    anim.onUpdate(eased, t);
+    if (t >= 1) {
+      if (anim.onComplete) anim.onComplete();
+      return false;
+    }
+    return true;
+  });
+}
+
+// ---- card visuals ----
+const CARD_STYLES = {
+  default: {
+    border: "#38bdf8",
+    fill1: "#1e293b",
+    fill2: "#152034",
+    glow: null,
+  },
+  hover: {
+    border: "#facc15",
+    fill1: "#2a2410",
+    fill2: "#1e1a0a",
+    glow: "rgba(250,204,21,0.35)",
+  },
+  correct: {
+    border: "#4ade80",
+    fill1: "#123524",
+    fill2: "#0d2a1b",
+    glow: "rgba(74,222,128,0.45)",
+  },
+  incorrect: {
+    border: "#f87171",
+    fill1: "#3a1414",
+    fill2: "#2a0d0d",
+    glow: "rgba(248,113,113,0.4)",
+  },
+  slot: {
+    border: "#facc15",
+    fill1: "#241d08",
+    fill2: "#181205",
+    glow: "rgba(250,204,21,0.3)",
+  },
+};
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function makeCardTexture(text, styleKey, subtitle) {
+  const style = CARD_STYLES[styleKey] || CARD_STYLES.default;
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 128;
+  canvas.width = 320;
+  canvas.height = 176;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#1e293b";
-  ctx.fillRect(0, 0, 256, 128);
-  ctx.strokeStyle = borderColor || "#38bdf8";
+
+  // outer glow
+  if (style.glow) {
+    ctx.save();
+    ctx.shadowColor = style.glow;
+    ctx.shadowBlur = 26;
+    roundRectPath(ctx, 10, 10, 300, 156, 22);
+    ctx.fillStyle = style.glow;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // card background gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, style.fill1);
+  grad.addColorStop(1, style.fill2);
+  roundRectPath(ctx, 8, 8, 304, 160, 20);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // border
   ctx.lineWidth = 6;
-  ctx.strokeRect(3, 3, 250, 122);
-  ctx.fillStyle = "#f1f5f9";
-  ctx.font = "bold 28px sans-serif";
+  ctx.strokeStyle = style.border;
+  roundRectPath(ctx, 8, 8, 304, 160, 20);
+  ctx.stroke();
+
+  // inner highlight line
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  roundRectPath(ctx, 14, 14, 292, 60, 14);
+  ctx.stroke();
+
+  // text
+  ctx.fillStyle = "#f8fafc";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, 128, 64);
+  const fontSize = text.length > 10 ? 26 : 32;
+  ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+  wrapCanvasText(
+    ctx,
+    text,
+    canvas.width / 2,
+    subtitle ? 74 : 88,
+    270,
+    fontSize + 6,
+  );
+
+  if (subtitle) {
+    ctx.font = "500 20px 'Segoe UI', sans-serif";
+    ctx.fillStyle = "rgba(226,232,240,0.75)";
+    ctx.fillText(subtitle, canvas.width / 2, 132);
+  }
+
   return new THREE.CanvasTexture(canvas);
 }
 
+function wrapCanvasText(ctx, text, cx, cy, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  const startY = cy - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, i) => ctx.fillText(line, cx, startY + i * lineHeight));
+}
+
+function makeSlotTexture(state) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 176;
+  const ctx = canvas.getContext("2d");
+
+  const style =
+    state === "correct"
+      ? CARD_STYLES.correct
+      : state === "incorrect"
+        ? CARD_STYLES.incorrect
+        : CARD_STYLES.slot;
+
+  ctx.save();
+  ctx.shadowColor = style.glow;
+  ctx.shadowBlur = 30;
+  roundRectPath(ctx, 10, 10, 300, 156, 24);
+  ctx.fillStyle = style.glow;
+  ctx.fill();
+  ctx.restore();
+
+  roundRectPath(ctx, 8, 8, 304, 160, 22);
+  ctx.fillStyle = "rgba(15,23,42,0.55)";
+  ctx.fill();
+
+  ctx.setLineDash(state === "default" || !state ? [14, 10] : []);
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = style.border;
+  roundRectPath(ctx, 8, 8, 304, 160, 22);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = style.border;
+  ctx.font = "bold 64px 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const symbol =
+    state === "correct" ? "\u2713" : state === "incorrect" ? "\u2717" : "?";
+  ctx.fillText(symbol, canvas.width / 2, canvas.height / 2);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ---- mediapipe hands ----
 function initHands() {
   const videoElement = document.getElementById("input_video");
   const canvasElement = document.getElementById("output_canvas");
@@ -45,8 +224,8 @@ function initHands() {
   hands.setOptions({
     maxNumHands: 1,
     modelComplexity: 1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7,
+    minDetectionConfidence: 0.75,
+    minTrackingConfidence: 0.75,
   });
 
   hands.onResults((results) => {
@@ -60,8 +239,16 @@ function initHands() {
       canvasElement.height,
     );
 
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      statusEl.textContent = "Mano detectada";
+    const handFound =
+      results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+
+    if (handFound) {
+      handStableFrames = Math.min(handStableFrames + 1, 30);
+      handSeenLastFrame = true;
+      statusEl.textContent =
+        handStableFrames > 6 ? "Mano estable ✔" : "Mano detectada...";
+      statusEl.style.color = handStableFrames > 6 ? "#4ade80" : "#facc15";
+
       const landmarks = results.multiHandLandmarks[0];
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
         color: "#38bdf8",
@@ -78,7 +265,11 @@ function initHands() {
       const dx = thumbTip.x - indexTip.x;
       const dy = thumbTip.y - indexTip.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const isPinching = distance < PINCH_THRESHOLD;
+
+      // hysteresis avoids flicker right at the threshold boundary
+      if (!isPinching && distance < PINCH_ENTER) isPinching = true;
+      else if (isPinching && distance > PINCH_EXIT) isPinching = false;
+
       gestureEl.textContent = isPinching ? "PELLIZCO" : "Mano abierta";
       gestureEl.style.color = isPinching ? "#f87171" : "#4ade80";
 
@@ -97,16 +288,27 @@ function initHands() {
       canvasCtx.beginPath();
       canvasCtx.arc(px, py, canvasElement.width * 0.015, 0, 2 * Math.PI);
       canvasCtx.fillStyle = isPinching
-        ? "rgba(248,113,113,0.8)"
-        : "rgba(56,189,248,0.8)";
+        ? "rgba(248,113,113,0.85)"
+        : "rgba(56,189,248,0.85)";
       canvasCtx.fill();
+      canvasCtx.lineWidth = 2;
+      canvasCtx.strokeStyle = "#f1f5f9";
+      canvasCtx.stroke();
 
       updatePointer3D(smoothedX, smoothedY, isPinching);
     } else {
+      handStableFrames = 0;
+      handSeenLastFrame = false;
       statusEl.textContent = "Buscando mano...";
+      statusEl.style.color = "#94a3b8";
       gestureEl.textContent = "Ninguno";
       smoothedX = null;
       smoothedY = null;
+      isPinching = false;
+      if (hoveredMesh) {
+        refreshOptionTexture(hoveredMesh, "default");
+        hoveredMesh = null;
+      }
     }
     canvasCtx.restore();
   });
@@ -168,7 +370,7 @@ function resizeARViewport() {
   }
 
   if (optionMeshes.length > 0 || targetSlotMesh) {
-    loadQuestion(currentQuestionIndex);
+    loadQuestion(currentQuestionIndex, false);
   }
 }
 
@@ -177,19 +379,47 @@ function clearQuestionObjects() {
   optionMeshes = [];
   if (targetSlotMesh) scene.remove(targetSlotMesh);
   draggedMesh = null;
+  hoveredMesh = null;
 }
 
-function loadQuestion(index) {
+function refreshOptionTexture(mesh, styleKey) {
+  mesh.material.map = makeCardTexture(
+    mesh.userData.text,
+    styleKey,
+    mesh.userData.subtitle,
+  );
+  mesh.material.needsUpdate = true;
+}
+
+function updateBanner(question, index) {
+  const banner = document.getElementById("question-banner");
+  banner.classList.add("banner-fade-out");
+
+  setTimeout(() => {
+    document.getElementById("question-text").textContent = question.question;
+    document.getElementById("question-counter").textContent =
+      `Pregunta ${index + 1} de ${QUESTION_BANK.length}`;
+    document.getElementById("question-type-badge").textContent =
+      question.type === "vf" ? "Verdadero o Falso" : "Arrastra y suelta";
+    const pct = ((index + 1) / QUESTION_BANK.length) * 100;
+    document.getElementById("question-progress-fill").style.width = `${pct}%`;
+    banner.classList.remove("banner-fade-out");
+  }, 180);
+}
+
+function loadQuestion(index, animateIn = true) {
   clearQuestionObjects();
   questionLocked = false;
+  inTransition = false;
 
   const question = QUESTION_BANK[index];
-  document.getElementById("question-text").textContent = question.question;
-  document.getElementById("question-counter").textContent =
-    `Pregunta ${index + 1} de ${QUESTION_BANK.length}`;
-  document.getElementById("quest-status").textContent =
-    "Arrastra la respuesta correcta";
-  document.getElementById("quest-status").style.color = "#94a3b8";
+  updateBanner(question, index);
+  const questStatusEl = document.getElementById("quest-status");
+  questStatusEl.textContent =
+    question.type === "vf"
+      ? "Arrastra Verdadero o Falso al espacio"
+      : "Arrastra la respuesta correcta";
+  questStatusEl.style.color = "#94a3b8";
 
   const visible = getVisibleSizeAtZ(0);
   const usableWidth = visible.width * 0.75;
@@ -198,14 +428,14 @@ function loadQuestion(index) {
 
   const n = question.options.length;
   const spacing = usableWidth / n;
-  const cardWidth = Math.min(spacing * 0.85, visible.width * 0.28);
-  const cardHeight = cardWidth * 0.5;
+  const cardWidth = Math.min(spacing * 0.85, visible.width * 0.3);
+  const cardHeight = cardWidth * 0.55;
   const startX = -usableWidth / 2 + spacing / 2;
 
   targetSlotMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(cardWidth * 1.1, cardHeight * 1.1),
+    new THREE.PlaneGeometry(cardWidth * 1.15, cardHeight * 1.15),
     new THREE.MeshBasicMaterial({
-      map: makeCardTexture("?", "#facc15"),
+      map: makeSlotTexture("default"),
       transparent: true,
     }),
   );
@@ -216,17 +446,34 @@ function loadQuestion(index) {
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(cardWidth, cardHeight),
       new THREE.MeshBasicMaterial({
-        map: makeCardTexture(optionText, "#38bdf8"),
+        map: makeCardTexture(optionText, "default"),
         transparent: true,
+        opacity: animateIn ? 0 : 1,
       }),
     );
     const posX = startX + i * spacing;
     mesh.position.set(posX, bottomY, 0);
+    if (animateIn) mesh.scale.set(0.7, 0.7, 0.7);
     mesh.userData.text = optionText;
     mesh.userData.isCorrect = optionText === question.answer;
     mesh.userData.originalPosition = new THREE.Vector3(posX, bottomY, 0);
     scene.add(mesh);
     optionMeshes.push(mesh);
+
+    if (animateIn) {
+      animate(
+        420,
+        (t) => {
+          mesh.material.opacity = t;
+          const s = 0.7 + 0.3 * t;
+          mesh.scale.set(s, s, s);
+        },
+        () => {
+          mesh.material.opacity = 1;
+          mesh.scale.set(1, 1, 1);
+        },
+      );
+    }
   });
 }
 
@@ -240,17 +487,18 @@ function normalizedToWorldPoint(nx, ny) {
   return camera3D.position.clone().add(dir.multiplyScalar(distance));
 }
 
-function updatePointer3D(nx, ny, isPinching) {
+function updatePointer3D(nx, ny, pinching) {
   const worldPoint = normalizedToWorldPoint(nx, ny);
   pointerMesh.position.copy(worldPoint);
-  pointerMesh.material.color.set(isPinching ? 0xf87171 : 0xf1f5f9);
+  pointerMesh.material.color.set(pinching ? 0xf87171 : 0xf1f5f9);
 
-  if (questionLocked) return;
+  if (questionLocked || inTransition) return;
 
   const visible = getVisibleSizeAtZ(0);
   const GRAB_RADIUS = visible.width * 0.18;
+  const HOVER_RADIUS = visible.width * 0.22;
 
-  if (isPinching) {
+  if (pinching) {
     if (!draggedMesh) {
       let closest = null;
       let closestDist = GRAB_RADIUS;
@@ -262,14 +510,64 @@ function updatePointer3D(nx, ny, isPinching) {
         }
       });
       draggedMesh = closest;
+      if (hoveredMesh && hoveredMesh !== draggedMesh) {
+        refreshOptionTexture(hoveredMesh, "default");
+        hoveredMesh = null;
+      }
     }
     if (draggedMesh) {
       draggedMesh.position.copy(worldPoint);
     }
-  } else if (draggedMesh) {
-    checkDrop(draggedMesh);
-    draggedMesh = null;
+  } else {
+    // hover affordance: shows the user which object detection is tracking as "grabbable"
+    let closest = null;
+    let closestDist = HOVER_RADIUS;
+    optionMeshes.forEach((mesh) => {
+      const dist = worldPoint.distanceTo(mesh.position);
+      if (dist < closestDist) {
+        closest = mesh;
+        closestDist = dist;
+      }
+    });
+    if (closest !== hoveredMesh) {
+      if (hoveredMesh) refreshOptionTexture(hoveredMesh, "default");
+      if (closest) refreshOptionTexture(closest, "hover");
+      hoveredMesh = closest;
+    }
+    if (draggedMesh) {
+      checkDrop(draggedMesh);
+      draggedMesh = null;
+    }
   }
+}
+
+function shakeMesh(mesh) {
+  const origin = mesh.userData.originalPosition.clone();
+  animate(
+    360,
+    (t) => {
+      const offset = Math.sin(t * Math.PI * 6) * (1 - t) * 0.18;
+      mesh.position.set(origin.x + offset, origin.y, origin.z);
+    },
+    () => mesh.position.copy(origin),
+  );
+}
+
+function bounceMesh(mesh) {
+  animate(
+    420,
+    (t) => {
+      const s = 1 + Math.sin(t * Math.PI) * 0.25;
+      mesh.scale.set(s, s, s);
+    },
+    () => mesh.scale.set(1, 1, 1),
+  );
+}
+
+function flashViewport(className) {
+  const viewport = document.getElementById("ar-viewport");
+  viewport.classList.add(className);
+  setTimeout(() => viewport.classList.remove(className), 650);
 }
 
 function checkDrop(mesh) {
@@ -281,17 +579,26 @@ function checkDrop(mesh) {
   if (distToSlot < DROP_RADIUS) {
     if (mesh.userData.isCorrect) {
       questionLocked = true;
+      inTransition = true;
       mesh.position.copy(targetSlotMesh.position);
-      mesh.material.map = makeCardTexture(mesh.userData.text, "#4ade80");
-      mesh.material.needsUpdate = true;
-      questStatusEl.textContent = "CORRECTO!";
+      refreshOptionTexture(mesh, "correct");
+      targetSlotMesh.material.map = makeSlotTexture("correct");
+      targetSlotMesh.material.needsUpdate = true;
+      bounceMesh(mesh);
+      flashViewport("correct-flash");
+      questStatusEl.textContent = "\u2713 Correcto! Siguiente pregunta...";
       questStatusEl.style.color = "#4ade80";
       quizScore++;
-      setTimeout(goToNextQuestion, 1200);
+      setTimeout(goToNextQuestion, 1100);
     } else {
-      questStatusEl.textContent = "Incorrecto, intenta con otra palabra";
+      refreshOptionTexture(mesh, "incorrect");
+      shakeMesh(mesh);
+      flashViewport("incorrect-flash");
+      questStatusEl.textContent = "Incorrecto, intenta con otra opcion";
       questStatusEl.style.color = "#f87171";
-      mesh.position.copy(mesh.userData.originalPosition);
+      setTimeout(() => {
+        if (optionMeshes.includes(mesh)) refreshOptionTexture(mesh, "default");
+      }, 550);
     }
   } else {
     mesh.position.copy(mesh.userData.originalPosition);
@@ -301,7 +608,7 @@ function checkDrop(mesh) {
 function goToNextQuestion() {
   currentQuestionIndex++;
   if (currentQuestionIndex < QUESTION_BANK.length) {
-    loadQuestion(currentQuestionIndex);
+    loadQuestion(currentQuestionIndex, true);
   } else {
     finishQuiz();
   }
@@ -318,9 +625,17 @@ function finishQuiz() {
   }
 }
 
-function renderLoop() {
+function renderLoop(now) {
   if (!renderLoopActive) return;
   requestAnimationFrame(renderLoop);
+  stepAnimations(now || performance.now());
+
+  if (targetSlotMesh && !questionLocked) {
+    const t = (now || performance.now()) / 1000;
+    const pulse = 1 + Math.sin(t * 2.4) * 0.035;
+    targetSlotMesh.scale.set(pulse, pulse, 1);
+  }
+
   renderer.render(scene, camera3D);
 }
 
@@ -334,6 +649,9 @@ function startARExperience() {
   if (!scene) initScene();
 
   document.getElementById("quiz-summary").style.display = "none";
+  document
+    .getElementById("ar-viewport")
+    .classList.remove("correct-flash", "incorrect-flash");
 
   resizeARViewport();
   window.addEventListener("resize", handleViewportResize);
@@ -341,7 +659,8 @@ function startARExperience() {
 
   currentQuestionIndex = 0;
   quizScore = 0;
-  loadQuestion(0);
+  handStableFrames = 0;
+  loadQuestion(0, true);
 
   renderLoopActive = true;
   renderLoop();
