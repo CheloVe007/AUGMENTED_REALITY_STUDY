@@ -5,17 +5,9 @@ const examQuestions = [
     options: ["Sucre", "La Paz", "Cochabamba"],
     correct: 1,
   },
-  {
-    q: "Un triangulo tiene:",
-    options: ["4 lados", "3 lados", "5 lados"],
-    correct: 1,
-  },
+  { q: "Un triangulo tiene:", options: ["4 lados", "3 lados", "5 lados"], correct: 1 },
   { q: "El Sol es un planeta.", options: ["Verdadero", "Falso"], correct: 1 },
-  {
-    q: "Cual es el resultado de 10 / 2?",
-    options: ["2", "5", "10"],
-    correct: 1,
-  },
+  { q: "Cual es el resultado de 10 / 2?", options: ["2", "5", "10"], correct: 1 },
   {
     q: "El agua hierve a 100°C al nivel del mar.",
     options: ["Verdadero", "Falso"],
@@ -95,9 +87,7 @@ function renderExamQuestion() {
   setTimeout(() => {
     document.getElementById("exam-question-counter").textContent =
       `Pregunta ${currentQuestion + 1} de ${examQuestions.length}`;
-    document.getElementById("exam-type-badge").textContent = isTrueFalse(
-      question,
-    )
+    document.getElementById("exam-type-badge").textContent = isTrueFalse(question)
       ? "Verdadero o Falso"
       : "Opcion multiple";
     document.getElementById("exam-progress-fill").style.width =
@@ -134,9 +124,7 @@ function answerExamQuestion(selectedIndex, btnEl) {
   const question = examQuestions[currentQuestion];
   const correctIndex = question.correct;
   const feedbackEl = document.getElementById("exam-feedback");
-  const allButtons = document.querySelectorAll(
-    "#exam-options .exam-option-btn",
-  );
+  const allButtons = document.querySelectorAll("#exam-options .exam-option-btn");
 
   allButtons.forEach((b) => (b.disabled = true));
 
@@ -174,8 +162,6 @@ function finishExam() {
   }
 }
 
-document
-  .getElementById("exam-restart-button")
-  .addEventListener("click", startExam);
+document.getElementById("exam-restart-button").addEventListener("click", startExam);
 
 window.startExam = startExam;

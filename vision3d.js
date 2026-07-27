@@ -18,15 +18,13 @@ let quizScore = 0;
 let questionLocked = false;
 let inTransition = false;
 
+const CARD_DEPTH = 0.22;
+const SLOT_DEPTH = 0.26;
+
 // ---- small tween manager, stepped every render frame ----
 let activeAnimations = [];
 function animate(duration, onUpdate, onComplete) {
-  activeAnimations.push({
-    start: performance.now(),
-    duration,
-    onUpdate,
-    onComplete,
-  });
+  activeAnimations.push({ start: performance.now(), duration, onUpdate, onComplete });
 }
 function stepAnimations(now) {
   activeAnimations = activeAnimations.filter((anim) => {
@@ -43,36 +41,11 @@ function stepAnimations(now) {
 
 // ---- card visuals ----
 const CARD_STYLES = {
-  default: {
-    border: "#38bdf8",
-    fill1: "#1e293b",
-    fill2: "#152034",
-    glow: null,
-  },
-  hover: {
-    border: "#facc15",
-    fill1: "#2a2410",
-    fill2: "#1e1a0a",
-    glow: "rgba(250,204,21,0.35)",
-  },
-  correct: {
-    border: "#4ade80",
-    fill1: "#123524",
-    fill2: "#0d2a1b",
-    glow: "rgba(74,222,128,0.45)",
-  },
-  incorrect: {
-    border: "#f87171",
-    fill1: "#3a1414",
-    fill2: "#2a0d0d",
-    glow: "rgba(248,113,113,0.4)",
-  },
-  slot: {
-    border: "#facc15",
-    fill1: "#241d08",
-    fill2: "#181205",
-    glow: "rgba(250,204,21,0.3)",
-  },
+  default: { border: "#38bdf8", fill1: "#1e293b", fill2: "#152034", glow: null },
+  hover: { border: "#facc15", fill1: "#2a2410", fill2: "#1e1a0a", glow: "rgba(250,204,21,0.35)" },
+  correct: { border: "#4ade80", fill1: "#123524", fill2: "#0d2a1b", glow: "rgba(74,222,128,0.45)" },
+  incorrect: { border: "#f87171", fill1: "#3a1414", fill2: "#2a0d0d", glow: "rgba(248,113,113,0.4)" },
+  slot: { border: "#facc15", fill1: "#241d08", fill2: "#181205", glow: "rgba(250,204,21,0.3)" },
 };
 
 function roundRectPath(ctx, x, y, w, h, r) {
@@ -92,7 +65,6 @@ function makeCardTexture(text, styleKey, subtitle) {
   canvas.height = 176;
   const ctx = canvas.getContext("2d");
 
-  // outer glow
   if (style.glow) {
     ctx.save();
     ctx.shadowColor = style.glow;
@@ -103,7 +75,6 @@ function makeCardTexture(text, styleKey, subtitle) {
     ctx.restore();
   }
 
-  // card background gradient
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
   grad.addColorStop(0, style.fill1);
   grad.addColorStop(1, style.fill2);
@@ -111,32 +82,22 @@ function makeCardTexture(text, styleKey, subtitle) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // border
   ctx.lineWidth = 6;
   ctx.strokeStyle = style.border;
   roundRectPath(ctx, 8, 8, 304, 160, 20);
   ctx.stroke();
 
-  // inner highlight line
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = "rgba(255,255,255,0.12)";
   roundRectPath(ctx, 14, 14, 292, 60, 14);
   ctx.stroke();
 
-  // text
   ctx.fillStyle = "#f8fafc";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const fontSize = text.length > 10 ? 26 : 32;
   ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
-  wrapCanvasText(
-    ctx,
-    text,
-    canvas.width / 2,
-    subtitle ? 74 : 88,
-    270,
-    fontSize + 6,
-  );
+  wrapCanvasText(ctx, text, canvas.width / 2, subtitle ? 74 : 88, 270, fontSize + 6);
 
   if (subtitle) {
     ctx.font = "500 20px 'Segoe UI', sans-serif";
@@ -172,11 +133,7 @@ function makeSlotTexture(state) {
   const ctx = canvas.getContext("2d");
 
   const style =
-    state === "correct"
-      ? CARD_STYLES.correct
-      : state === "incorrect"
-        ? CARD_STYLES.incorrect
-        : CARD_STYLES.slot;
+    state === "correct" ? CARD_STYLES.correct : state === "incorrect" ? CARD_STYLES.incorrect : CARD_STYLES.slot;
 
   ctx.save();
   ctx.shadowColor = style.glow;
@@ -201,14 +158,79 @@ function makeSlotTexture(state) {
   ctx.font = "bold 64px 'Segoe UI', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const symbol =
-    state === "correct" ? "\u2713" : state === "incorrect" ? "\u2717" : "?";
+  const symbol = state === "correct" ? "\u2713" : state === "incorrect" ? "\u2717" : "?";
   ctx.fillText(symbol, canvas.width / 2, canvas.height / 2);
 
   return new THREE.CanvasTexture(canvas);
 }
 
-// ---- mediapipe hands ----
+// ---- tarjetas 3D reales: caja con bisel iluminado + cara frontal con la textura ----
+function createEdgeMaterial(styleKey) {
+  const style = CARD_STYLES[styleKey] || CARD_STYLES.default;
+  return new THREE.MeshStandardMaterial({ color: style.border, roughness: 0.45, metalness: 0.28 });
+}
+
+function createCardMesh(text, width, height, depth, styleKey, subtitle) {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const edge = createEdgeMaterial(styleKey);
+  const front = new THREE.MeshBasicMaterial({
+    map: makeCardTexture(text, styleKey, subtitle),
+    transparent: true,
+  });
+  // orden de caras de un BoxGeometry: +x,-x,+y,-y,+z(frente),-z
+  const mesh = new THREE.Mesh(geometry, [edge, edge, edge, edge, front, edge]);
+  mesh.userData.text = text;
+  mesh.userData.subtitle = subtitle;
+  return mesh;
+}
+
+function createSlotMesh(width, height, depth) {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const edge = new THREE.MeshStandardMaterial({
+    color: CARD_STYLES.slot.border,
+    roughness: 0.5,
+    metalness: 0.22,
+  });
+  const front = new THREE.MeshBasicMaterial({ map: makeSlotTexture("default"), transparent: true });
+  return new THREE.Mesh(geometry, [edge, edge, edge, edge, front, edge]);
+}
+
+function setCardState(mesh, styleKey, subtitle) {
+  const style = CARD_STYLES[styleKey] || CARD_STYLES.default;
+  const materials = mesh.material;
+  [0, 1, 2, 3, 5].forEach((idx) => materials[idx].color.set(style.border));
+  if (materials[4].map) materials[4].map.dispose();
+  materials[4].map = makeCardTexture(
+    mesh.userData.text,
+    styleKey,
+    subtitle !== undefined ? subtitle : mesh.userData.subtitle,
+  );
+  materials[4].needsUpdate = true;
+}
+
+function setSlotState(mesh, state) {
+  const style = state === "correct" ? CARD_STYLES.correct : state === "incorrect" ? CARD_STYLES.incorrect : CARD_STYLES.slot;
+  const materials = mesh.material;
+  [0, 1, 2, 3, 5].forEach((idx) => materials[idx].color.set(style.border));
+  if (materials[4].map) materials[4].map.dispose();
+  materials[4].map = makeSlotTexture(state);
+  materials[4].needsUpdate = true;
+}
+
+function disposeMesh(mesh) {
+  if (Array.isArray(mesh.material)) {
+    mesh.material.forEach((m) => {
+      if (m.map) m.map.dispose();
+      m.dispose();
+    });
+  } else if (mesh.material) {
+    if (mesh.material.map) mesh.material.map.dispose();
+    mesh.material.dispose();
+  }
+  if (mesh.geometry) mesh.geometry.dispose();
+}
+
+// ---- mediapipe hands: fondo negro puro, solo se dibuja el esqueleto de la mano ----
 function initHands() {
   const videoElement = document.getElementById("input_video");
   const canvasElement = document.getElementById("output_canvas");
@@ -217,8 +239,7 @@ function initHands() {
   const gestureEl = document.getElementById("gesture");
 
   hands = new Hands({
-    locateFile: (file) =>
-      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
   });
 
   hands.setOptions({
@@ -230,34 +251,28 @@ function initHands() {
 
   hands.onResults((results) => {
     canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(
-      results.image,
-      0,
-      0,
-      canvasElement.width,
-      canvasElement.height,
-    );
+    // la persona no importa para la inmersion: se descarta el video y se pinta negro puro
+    canvasCtx.fillStyle = "#000000";
+    canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-    const handFound =
-      results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+    const handFound = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
     if (handFound) {
       handStableFrames = Math.min(handStableFrames + 1, 30);
       handSeenLastFrame = true;
-      statusEl.textContent =
-        handStableFrames > 6 ? "Mano estable ✔" : "Mano detectada...";
+      statusEl.textContent = handStableFrames > 6 ? "Mano estable ✔" : "Mano detectada...";
       statusEl.style.color = handStableFrames > 6 ? "#4ade80" : "#facc15";
 
       const landmarks = results.multiHandLandmarks[0];
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-        color: "#38bdf8",
-        lineWidth: 2,
+        color: "#22d3ee",
+        lineWidth: 3,
       });
       drawLandmarks(canvasCtx, landmarks, {
         color: "#4ade80",
-        lineWidth: 1,
-        radius: 3,
+        fillColor: "#0f172a",
+        lineWidth: 2,
+        radius: 4,
       });
 
       const thumbTip = landmarks[4];
@@ -285,15 +300,17 @@ function initHands() {
 
       const px = smoothedX * canvasElement.width;
       const py = smoothedY * canvasElement.height;
+      canvasCtx.save();
+      canvasCtx.shadowColor = isPinching ? "#f87171" : "#38bdf8";
+      canvasCtx.shadowBlur = 18;
       canvasCtx.beginPath();
-      canvasCtx.arc(px, py, canvasElement.width * 0.015, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = isPinching
-        ? "rgba(248,113,113,0.85)"
-        : "rgba(56,189,248,0.85)";
+      canvasCtx.arc(px, py, canvasElement.width * 0.018, 0, 2 * Math.PI);
+      canvasCtx.fillStyle = isPinching ? "rgba(248,113,113,0.9)" : "rgba(56,189,248,0.9)";
       canvasCtx.fill();
       canvasCtx.lineWidth = 2;
       canvasCtx.strokeStyle = "#f1f5f9";
       canvasCtx.stroke();
+      canvasCtx.restore();
 
       updatePointer3D(smoothedX, smoothedY, isPinching);
     } else {
@@ -306,7 +323,7 @@ function initHands() {
       smoothedY = null;
       isPinching = false;
       if (hoveredMesh) {
-        refreshOptionTexture(hoveredMesh, "default");
+        setCardState(hoveredMesh, "default");
         hoveredMesh = null;
       }
     }
@@ -336,13 +353,17 @@ function initScene() {
   });
   renderer.setClearColor(0x000000, 0);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  // luces para que las tarjetas-caja tengan sombreado y se sientan realmente tridimensionales
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 0.95);
+  keyLight.position.set(2.5, 4, 5);
+  scene.add(keyLight);
+  const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.35);
+  fillLight.position.set(-3, -1.5, 2);
+  scene.add(fillLight);
 
   const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
-  pointerMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 16, 16),
-    pointerMaterial,
-  );
+  pointerMesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), pointerMaterial);
   scene.add(pointerMesh);
 }
 
@@ -375,20 +396,18 @@ function resizeARViewport() {
 }
 
 function clearQuestionObjects() {
-  optionMeshes.forEach((mesh) => scene.remove(mesh));
+  optionMeshes.forEach((mesh) => {
+    scene.remove(mesh);
+    disposeMesh(mesh);
+  });
   optionMeshes = [];
-  if (targetSlotMesh) scene.remove(targetSlotMesh);
+  if (targetSlotMesh) {
+    scene.remove(targetSlotMesh);
+    disposeMesh(targetSlotMesh);
+    targetSlotMesh = null;
+  }
   draggedMesh = null;
   hoveredMesh = null;
-}
-
-function refreshOptionTexture(mesh, styleKey) {
-  mesh.material.map = makeCardTexture(
-    mesh.userData.text,
-    styleKey,
-    mesh.userData.subtitle,
-  );
-  mesh.material.needsUpdate = true;
 }
 
 function updateBanner(question, index) {
@@ -416,9 +435,7 @@ function loadQuestion(index, animateIn = true) {
   updateBanner(question, index);
   const questStatusEl = document.getElementById("quest-status");
   questStatusEl.textContent =
-    question.type === "vf"
-      ? "Arrastra Verdadero o Falso al espacio"
-      : "Arrastra la respuesta correcta";
+    question.type === "vf" ? "Arrastra Verdadero o Falso al espacio" : "Arrastra la respuesta correcta";
   questStatusEl.style.color = "#94a3b8";
 
   const visible = getVisibleSizeAtZ(0);
@@ -432,31 +449,27 @@ function loadQuestion(index, animateIn = true) {
   const cardHeight = cardWidth * 0.55;
   const startX = -usableWidth / 2 + spacing / 2;
 
-  targetSlotMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(cardWidth * 1.15, cardHeight * 1.15),
-    new THREE.MeshBasicMaterial({
-      map: makeSlotTexture("default"),
-      transparent: true,
-    }),
-  );
+  targetSlotMesh = createSlotMesh(cardWidth * 1.15, cardHeight * 1.15, SLOT_DEPTH);
   targetSlotMesh.position.set(0, topY, 0);
   scene.add(targetSlotMesh);
 
   question.options.forEach((optionText, i) => {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(cardWidth, cardHeight),
-      new THREE.MeshBasicMaterial({
-        map: makeCardTexture(optionText, "default"),
-        transparent: true,
-        opacity: animateIn ? 0 : 1,
-      }),
-    );
+    const mesh = createCardMesh(optionText, cardWidth, cardHeight, CARD_DEPTH, "default");
+
+    // disposicion en abanico: las tarjetas de los extremos se retrasan un poco en Z,
+    // dando una sensacion real de profundidad/curvatura tridimensional
     const posX = startX + i * spacing;
-    mesh.position.set(posX, bottomY, 0);
+    const norm = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;
+    const posY = bottomY - Math.abs(norm) * cardHeight * 0.22;
+    const posZ = -Math.abs(norm) * 0.35;
+
+    mesh.position.set(posX, posY, posZ);
+    mesh.rotation.z = norm * -0.05;
     if (animateIn) mesh.scale.set(0.7, 0.7, 0.7);
-    mesh.userData.text = optionText;
+    mesh.material[4].opacity = animateIn ? 0 : 1;
     mesh.userData.isCorrect = optionText === question.answer;
-    mesh.userData.originalPosition = new THREE.Vector3(posX, bottomY, 0);
+    mesh.userData.originalPosition = new THREE.Vector3(posX, posY, posZ);
+    mesh.userData.floatPhase = Math.random() * Math.PI * 2;
     scene.add(mesh);
     optionMeshes.push(mesh);
 
@@ -464,12 +477,12 @@ function loadQuestion(index, animateIn = true) {
       animate(
         420,
         (t) => {
-          mesh.material.opacity = t;
+          mesh.material[4].opacity = t;
           const s = 0.7 + 0.3 * t;
           mesh.scale.set(s, s, s);
         },
         () => {
-          mesh.material.opacity = 1;
+          mesh.material[4].opacity = 1;
           mesh.scale.set(1, 1, 1);
         },
       );
@@ -511,12 +524,13 @@ function updatePointer3D(nx, ny, pinching) {
       });
       draggedMesh = closest;
       if (hoveredMesh && hoveredMesh !== draggedMesh) {
-        refreshOptionTexture(hoveredMesh, "default");
+        setCardState(hoveredMesh, "default");
         hoveredMesh = null;
       }
     }
     if (draggedMesh) {
       draggedMesh.position.copy(worldPoint);
+      draggedMesh.rotation.z = 0;
     }
   } else {
     // hover affordance: shows the user which object detection is tracking as "grabbable"
@@ -530,8 +544,8 @@ function updatePointer3D(nx, ny, pinching) {
       }
     });
     if (closest !== hoveredMesh) {
-      if (hoveredMesh) refreshOptionTexture(hoveredMesh, "default");
-      if (closest) refreshOptionTexture(closest, "hover");
+      if (hoveredMesh) setCardState(hoveredMesh, "default");
+      if (closest) setCardState(closest, "hover");
       hoveredMesh = closest;
     }
     if (draggedMesh) {
@@ -581,9 +595,9 @@ function checkDrop(mesh) {
       questionLocked = true;
       inTransition = true;
       mesh.position.copy(targetSlotMesh.position);
-      refreshOptionTexture(mesh, "correct");
-      targetSlotMesh.material.map = makeSlotTexture("correct");
-      targetSlotMesh.material.needsUpdate = true;
+      mesh.rotation.set(0, 0, 0);
+      setCardState(mesh, "correct");
+      setSlotState(targetSlotMesh, "correct");
       bounceMesh(mesh);
       flashViewport("correct-flash");
       questStatusEl.textContent = "\u2713 Correcto! Siguiente pregunta...";
@@ -591,13 +605,13 @@ function checkDrop(mesh) {
       quizScore++;
       setTimeout(goToNextQuestion, 1100);
     } else {
-      refreshOptionTexture(mesh, "incorrect");
+      setCardState(mesh, "incorrect");
       shakeMesh(mesh);
       flashViewport("incorrect-flash");
       questStatusEl.textContent = "Incorrecto, intenta con otra opcion";
       questStatusEl.style.color = "#f87171";
       setTimeout(() => {
-        if (optionMeshes.includes(mesh)) refreshOptionTexture(mesh, "default");
+        if (optionMeshes.includes(mesh)) setCardState(mesh, "default");
       }, 550);
     }
   } else {
@@ -628,13 +642,24 @@ function finishQuiz() {
 function renderLoop(now) {
   if (!renderLoopActive) return;
   requestAnimationFrame(renderLoop);
+  const t = (now || performance.now()) / 1000;
   stepAnimations(now || performance.now());
 
   if (targetSlotMesh && !questionLocked) {
-    const t = (now || performance.now()) / 1000;
     const pulse = 1 + Math.sin(t * 2.4) * 0.035;
-    targetSlotMesh.scale.set(pulse, pulse, 1);
+    targetSlotMesh.scale.set(pulse, pulse, pulse);
+    targetSlotMesh.rotation.y = Math.sin(t * 0.5) * 0.1;
+    targetSlotMesh.rotation.x = Math.cos(t * 0.4) * 0.04;
   }
+
+  // flotacion suave tipo "carta elegante" para dar sensacion de volumen real
+  optionMeshes.forEach((mesh) => {
+    if (mesh === draggedMesh || questionLocked) return;
+    const phase = mesh.userData.floatPhase || 0;
+    mesh.rotation.y = Math.sin(t * 0.6 + phase) * 0.14;
+    mesh.rotation.x = Math.cos(t * 0.5 + phase) * 0.06;
+    mesh.position.y = mesh.userData.originalPosition.y + Math.sin(t * 0.8 + phase) * 0.06;
+  });
 
   renderer.render(scene, camera3D);
 }
@@ -649,9 +674,7 @@ function startARExperience() {
   if (!scene) initScene();
 
   document.getElementById("quiz-summary").style.display = "none";
-  document
-    .getElementById("ar-viewport")
-    .classList.remove("correct-flash", "incorrect-flash");
+  document.getElementById("ar-viewport").classList.remove("correct-flash", "incorrect-flash");
 
   resizeARViewport();
   window.addEventListener("resize", handleViewportResize);

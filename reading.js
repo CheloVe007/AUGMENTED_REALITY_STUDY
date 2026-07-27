@@ -1,5 +1,3 @@
-// reading.js — reemplaza el archivo completo
-
 // ---------- estado global de la sesion de lectura ----------
 let readingCamera, faceMesh;
 let readingLines = [];
@@ -11,13 +9,19 @@ let totalSamples = 0;
 
 let lineAccumulatedMs = 0;
 let lineRequiredMs = 1400;
+let lineHighWaterMark = 0; // progreso horizontal maximo alcanzado por la mirada en la linea activa
 let lastFrameTime = 0;
-
-let gazeHistory = []; // ratios horizontales recientes, para detectar "escaneo" ocular
-let lastScanDetectedAt = 0;
 let lineStartedAt = 0;
 
+let smoothedGazeRatio = 0.5;
+let currentWordSpans = [];
+
 let pdfExtractedText = "";
+let pdfReady = false;
+
+const GAZE_MIN = 0.32; // rango horizontal tipico del iris al leer una pantalla cercana
+const GAZE_MAX = 0.68;
+const GAZE_SMOOTHING = 0.25;
 
 // ---------- extraccion de texto desde PDF ----------
 if (window.pdfjsLib) {
@@ -43,19 +47,36 @@ document
   .addEventListener("change", async (event) => {
     const file = event.target.files[0];
     const statusEl = document.getElementById("reading-setup-status");
-    if (!file) return;
+    const startBtn = document.getElementById("start-reading-button");
+
+    startBtn.disabled = true;
+    pdfReady = false;
+
+    if (!file) {
+      statusEl.textContent = "";
+      return;
+    }
 
     statusEl.textContent = "Leyendo PDF...";
     statusEl.style.color = "#94a3b8";
+
     try {
       pdfExtractedText = await extractPdfText(file);
       const lineCount = splitIntoLines(pdfExtractedText).length;
-      statusEl.textContent = `PDF cargado: "${file.name}" (${lineCount} lineas listas para leer)`;
+
+      if (lineCount === 0) {
+        statusEl.textContent = "El PDF no tiene texto legible. Prueba con otro archivo.";
+        statusEl.style.color = "#f87171";
+        return;
+      }
+
+      statusEl.textContent = `PDF cargado: "${file.name}" — ${lineCount} lineas listas`;
       statusEl.style.color = "#4ade80";
+      pdfReady = true;
+      startBtn.disabled = false;
     } catch (err) {
       pdfExtractedText = "";
-      statusEl.textContent =
-        "No se pudo leer el PDF. Intenta con otro archivo.";
+      statusEl.textContent = "No se pudo leer el PDF. Intenta con otro archivo.";
       statusEl.style.color = "#f87171";
       console.error(err);
     }
@@ -67,16 +88,13 @@ function splitIntoLines(text) {
   if (!clean) return [];
 
   const sentences = clean.match(/[^.!?]+[.!?]+["')\]]?|[^.!?]+$/g) || [clean];
-  const CHUNK_WORDS = 14;
+  const CHUNK_WORDS = 10; // lineas cortas para que las letras grandes quepan bien
   const lines = [];
 
   sentences.forEach((sentence) => {
     const words = sentence.trim().split(" ").filter(Boolean);
     for (let i = 0; i < words.length; i += CHUNK_WORDS) {
-      const chunk = words
-        .slice(i, i + CHUNK_WORDS)
-        .join(" ")
-        .trim();
+      const chunk = words.slice(i, i + CHUNK_WORDS).join(" ").trim();
       if (chunk) lines.push(chunk);
     }
   });
@@ -90,10 +108,10 @@ function initFaceMesh() {
   const readingCtx = readingCanvas.getContext("2d");
   const faceStatusEl = document.getElementById("reading-face-status");
   const gazeStatusEl = document.getElementById("reading-gaze-status");
+  const gazeDot = document.getElementById("gaze-meter-dot");
 
   faceMesh = new FaceMesh({
-    locateFile: (file) =>
-      `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
   });
 
   faceMesh.setOptions({
@@ -106,13 +124,7 @@ function initFaceMesh() {
   faceMesh.onResults((results) => {
     readingCtx.save();
     readingCtx.clearRect(0, 0, readingCanvas.width, readingCanvas.height);
-    readingCtx.drawImage(
-      results.image,
-      0,
-      0,
-      readingCanvas.width,
-      readingCanvas.height,
-    );
+    readingCtx.drawImage(results.image, 0, 0, readingCanvas.width, readingCanvas.height);
 
     const now = performance.now();
     const dt = lastFrameTime ? now - lastFrameTime : 0;
@@ -120,7 +132,7 @@ function initFaceMesh() {
 
     let facePresent = false;
     let lookingForward = false;
-    let hRatio = 0.5;
+    let rawRatio = 0.5;
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       facePresent = true;
@@ -128,7 +140,6 @@ function initFaceMesh() {
       const nose = lm[1];
       lookingForward = nose.x > 0.3 && nose.x < 0.7;
 
-      // landmarks de iris (solo disponibles con refineLandmarks:true)
       const leftIris = lm[468];
       const rightIris = lm[473];
       if (leftIris && rightIris) {
@@ -138,14 +149,12 @@ function initFaceMesh() {
         const rightOuter = lm[263];
 
         const leftRatio = ratioBetween(leftIris.x, leftOuter.x, leftInner.x);
-        const rightRatio = ratioBetween(
-          rightIris.x,
-          rightInner.x,
-          rightOuter.x,
-        );
-        hRatio = (leftRatio + rightRatio) / 2;
+        const rightRatio = ratioBetween(rightIris.x, rightInner.x, rightOuter.x);
+        rawRatio = (leftRatio + rightRatio) / 2;
 
-        // punto de mirada (iris promedio) sobre el mini-canvas
+        smoothedGazeRatio =
+          GAZE_SMOOTHING * rawRatio + (1 - GAZE_SMOOTHING) * smoothedGazeRatio;
+
         const gx = ((leftIris.x + rightIris.x) / 2) * readingCanvas.width;
         const gy = ((leftIris.y + rightIris.y) / 2) * readingCanvas.height;
         readingCtx.beginPath();
@@ -160,27 +169,19 @@ function initFaceMesh() {
       readingCtx.arc(px, py, 4, 0, 2 * Math.PI);
       readingCtx.fillStyle = lookingForward ? "#4ade80" : "#facc15";
       readingCtx.fill();
-
-      gazeHistory.push(hRatio);
-      if (gazeHistory.length > 20) gazeHistory.shift();
-    } else {
-      gazeHistory = [];
     }
     readingCtx.restore();
 
+    const mappedRatio = clamp01((smoothedGazeRatio - GAZE_MIN) / (GAZE_MAX - GAZE_MIN));
+
     updateFaceStatusUI(facePresent, lookingForward, faceStatusEl);
-    updateGazeStatusUI(facePresent, hRatio, gazeStatusEl);
+    updateGazeMeterUI(facePresent, mappedRatio, gazeDot);
+    updateGazeStatusUI(facePresent, mappedRatio, gazeStatusEl);
 
     totalSamples++;
     if (facePresent && lookingForward) attentiveSamples++;
 
-    // deteccion de "escaneo" ocular: variacion horizontal reciente = lectura activa
-    if (gazeHistory.length >= 6) {
-      const stdDev = standardDeviation(gazeHistory);
-      if (stdDev > 0.018) lastScanDetectedAt = now;
-    }
-
-    advanceLineTimer(facePresent, lookingForward, dt, now);
+    advanceLineTimer(facePresent, lookingForward, dt, now, mappedRatio);
   });
 
   const readingVideo = document.getElementById("reading_video");
@@ -197,14 +198,11 @@ function ratioBetween(value, a, b) {
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
   if (hi - lo < 1e-6) return 0.5;
-  return Math.min(1, Math.max(0, (value - lo) / (hi - lo)));
+  return clamp01((value - lo) / (hi - lo));
 }
 
-function standardDeviation(values) {
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance =
-    values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
 }
 
 function updateFaceStatusUI(facePresent, lookingForward, el) {
@@ -220,64 +218,94 @@ function updateFaceStatusUI(facePresent, lookingForward, el) {
   }
 }
 
-function updateGazeStatusUI(facePresent, hRatio, el) {
+function updateGazeMeterUI(facePresent, mappedRatio, dotEl) {
+  if (!dotEl) return;
+  dotEl.style.left = `${(facePresent ? mappedRatio : 0.5) * 100}%`;
+  dotEl.style.opacity = facePresent ? "1" : "0.3";
+}
+
+function updateGazeStatusUI(facePresent, mappedRatio, el) {
   if (!facePresent) {
     el.textContent = "Mirada: --";
     el.style.color = "#94a3b8";
     return;
   }
   let label = "Centro";
-  if (hRatio < 0.4) label = "Lateral izquierda";
-  else if (hRatio > 0.6) label = "Lateral derecha";
+  if (mappedRatio < 0.35) label = "Inicio de linea";
+  else if (mappedRatio > 0.65) label = "Final de linea";
 
-  const scanning = performance.now() - lastScanDetectedAt < 1500;
-  el.textContent = scanning ? `Mirada: ${label} (leyendo)` : `Mirada: ${label}`;
-  el.style.color = scanning ? "#4ade80" : "#e2e8f0";
+  if (currentWordSpans.length > 0) {
+    const idx = Math.min(currentWordSpans.length - 1, Math.floor(mappedRatio * currentWordSpans.length));
+    el.textContent = `Mirada: ${label} · palabra ${idx + 1}/${currentWordSpans.length}`;
+  } else {
+    el.textContent = `Mirada: ${label}`;
+  }
+  el.style.color = "#4ade80";
 }
 
-// ---------- avance de linea segun atencion + actividad ocular ----------
-function advanceLineTimer(facePresent, lookingForward, dt, now) {
+// ---------- avance de linea: la mirada debe recorrer las palabras de izquierda a derecha ----------
+function advanceLineTimer(facePresent, lookingForward, dt, now, mappedRatio) {
   if (readingLines.length === 0) return;
   if (currentLineIndex >= readingLines.length) return;
 
   if (facePresent && lookingForward) {
     lineAccumulatedMs += dt;
+    if (mappedRatio > lineHighWaterMark) lineHighWaterMark = mappedRatio;
+    updateWordProgress(lineHighWaterMark);
   }
 
-  const scanningRecently = now - lastScanDetectedAt < 2500;
-  const graceWindow = now - lineStartedAt < 900; // margen al inicio de cada linea
+  const minTimeReached = lineAccumulatedMs >= lineRequiredMs * 0.55;
+  const wordsCovered = lineHighWaterMark >= 0.85;
 
-  if (
-    lineAccumulatedMs >= lineRequiredMs &&
-    (scanningRecently || graceWindow)
-  ) {
-    completeCurrentLine(Math.min(1, lineAccumulatedMs / lineRequiredMs));
-  } else if (lineAccumulatedMs >= lineRequiredMs * 1.8) {
-    // red de seguridad: si el escaneo nunca se detecta, igual no dejamos atascado al usuario
-    completeCurrentLine(0.6);
+  if (minTimeReached && wordsCovered) {
+    completeCurrentLine(Math.min(1, lineHighWaterMark));
+  } else if (lineAccumulatedMs >= lineRequiredMs * 2.4) {
+    // red de seguridad: evita que el usuario quede atascado si la deteccion falla
+    completeCurrentLine(Math.max(0.5, lineHighWaterMark));
   }
 
   updateReadingProgressUI();
+}
+
+function updateWordProgress(ratio) {
+  if (currentWordSpans.length === 0) return;
+  const activeIndex = Math.min(currentWordSpans.length - 1, Math.floor(ratio * currentWordSpans.length));
+  currentWordSpans.forEach((span, i) => {
+    span.classList.remove("word-read", "word-current", "word-upcoming");
+    if (i < activeIndex) span.classList.add("word-read");
+    else if (i === activeIndex) span.classList.add("word-current");
+    else span.classList.add("word-upcoming");
+  });
 }
 
 function completeCurrentLine(score) {
   lineScores[currentLineIndex] = score;
+  markWordsFullyRead();
   renderLineState(currentLineIndex, "read");
   currentLineIndex++;
   lineAccumulatedMs = 0;
+  lineHighWaterMark = 0;
   lineStartedAt = performance.now();
-  gazeHistory = [];
 
   if (currentLineIndex < readingLines.length) {
     lineRequiredMs = requiredMsForLine(readingLines[currentLineIndex]);
     activateLine(currentLineIndex);
+  } else {
+    currentWordSpans = [];
   }
   updateReadingProgressUI();
 }
 
+function markWordsFullyRead() {
+  currentWordSpans.forEach((span) => {
+    span.classList.remove("word-current", "word-upcoming");
+    span.classList.add("word-read");
+  });
+}
+
 function requiredMsForLine(line) {
   const words = line.split(" ").filter(Boolean).length;
-  return Math.max(1400, words * 260);
+  return Math.max(1600, words * 320);
 }
 
 // ---------- render de la "mascara" de lineas ----------
@@ -301,11 +329,32 @@ function renderLineState(index, state) {
   el.classList.add(state);
 }
 
+function renderActiveLineWords(index) {
+  const container = document.getElementById("reading-lines");
+  const el = container.querySelector(`[data-index="${index}"]`);
+  if (!el) return;
+
+  const words = readingLines[index].split(" ").filter(Boolean);
+  el.innerHTML = "";
+  const wrapper = document.createElement("div");
+  wrapper.className = "words-line";
+
+  words.forEach((word) => {
+    const span = document.createElement("span");
+    span.className = "word word-upcoming";
+    span.textContent = word;
+    wrapper.appendChild(span);
+  });
+
+  el.appendChild(wrapper);
+  currentWordSpans = Array.from(wrapper.querySelectorAll(".word"));
+}
+
 function activateLine(index) {
   renderLineState(index, "active");
+  renderActiveLineWords(index);
   for (let i = 0; i < index; i++) renderLineState(i, "read");
-  for (let i = index + 1; i < readingLines.length; i++)
-    renderLineState(i, "upcoming");
+  for (let i = index + 1; i < readingLines.length; i++) renderLineState(i, "upcoming");
 
   const container = document.getElementById("reading-lines");
   const el = container.querySelector(`[data-index="${index}"]`);
@@ -313,28 +362,24 @@ function activateLine(index) {
 }
 
 function updateReadingProgressUI() {
-  const attentionPct =
-    totalSamples === 0 ? 0 : (attentiveSamples / totalSamples) * 100;
+  const attentionPct = totalSamples === 0 ? 0 : (attentiveSamples / totalSamples) * 100;
   const completed = lineScores.filter((s) => s !== undefined).length;
   const scoreSum = lineScores.reduce((a, b) => a + (b || 0), 0);
-  const verifiedPct =
-    readingLines.length === 0 ? 0 : (scoreSum / readingLines.length) * 100;
+  const verifiedPct = readingLines.length === 0 ? 0 : (scoreSum / readingLines.length) * 100;
 
   document.getElementById("lines-progress").textContent =
     `${completed}/${readingLines.length}`;
-  document.getElementById("attention-progress").textContent =
-    `${Math.round(attentionPct)}%`;
-  document.getElementById("verified-progress").textContent =
-    `${Math.round(verifiedPct)}%`;
+  document.getElementById("attention-progress").textContent = `${Math.round(attentionPct)}%`;
+  document.getElementById("verified-progress").textContent = `${Math.round(verifiedPct)}%`;
   document.getElementById("reading-progress-fill").style.width =
-    readingLines.length === 0
-      ? "0%"
-      : `${(completed / readingLines.length) * 100}%`;
+    readingLines.length === 0 ? "0%" : `${(completed / readingLines.length) * 100}%`;
 }
 
 // ---------- controles manuales (respaldo si la deteccion falla) ----------
 document.getElementById("next-line-button").addEventListener("click", () => {
-  if (currentLineIndex < readingLines.length) completeCurrentLine(0.6);
+  if (currentLineIndex < readingLines.length) {
+    completeCurrentLine(Math.max(0.6, lineHighWaterMark));
+  }
 });
 
 document.getElementById("prev-line-button").addEventListener("click", () => {
@@ -342,6 +387,7 @@ document.getElementById("prev-line-button").addEventListener("click", () => {
   lineScores[currentLineIndex - 1] = undefined;
   currentLineIndex--;
   lineAccumulatedMs = 0;
+  lineHighWaterMark = 0;
   lineStartedAt = performance.now();
   lineRequiredMs = requiredMsForLine(readingLines[currentLineIndex]);
   activateLine(currentLineIndex);
@@ -350,26 +396,19 @@ document.getElementById("prev-line-button").addEventListener("click", () => {
 
 // ---------- ciclo de vida de la sesion ----------
 function startReadingSession() {
+  if (!pdfReady || !pdfExtractedText.trim()) return;
   if (!faceMesh) initFaceMesh();
 
-  const rawText = document.getElementById("reading-text-input").value.trim();
-  const sourceText =
-    pdfExtractedText.trim().length > 0
-      ? pdfExtractedText
-      : rawText.length > 0
-        ? rawText
-        : "Sube un PDF o pega tu propio texto la proxima vez. Este es un texto de ejemplo mientras la camara verifica que estas leyendo frente a la pantalla, siguiendo cada linea con la mirada.";
-
-  readingLines = splitIntoLines(sourceText);
+  readingLines = splitIntoLines(pdfExtractedText);
   currentLineIndex = 0;
   lineScores = [];
   lineAccumulatedMs = 0;
+  lineHighWaterMark = 0;
   lineStartedAt = performance.now();
   lastFrameTime = 0;
   attentiveSamples = 0;
   totalSamples = 0;
-  gazeHistory = [];
-  lastScanDetectedAt = 0;
+  smoothedGazeRatio = 0.5;
   lineRequiredMs = requiredMsForLine(readingLines[0] || "");
 
   renderLines();
@@ -381,8 +420,7 @@ function startReadingSession() {
   document.getElementById("reading-summary").style.display = "none";
 
   readingCamera.start().catch((err) => {
-    document.getElementById("reading-face-status").textContent =
-      "Error al acceder a la camara";
+    document.getElementById("reading-face-status").textContent = "Error al acceder a la camara";
     console.error(err);
   });
 }
@@ -391,20 +429,14 @@ function finishReadingSession() {
   if (readingCamera) readingCamera.stop();
 
   const scoreSum = lineScores.reduce((a, b) => a + (b || 0), 0);
-  const verifiedPct =
-    readingLines.length === 0
-      ? 0
-      : Math.round((scoreSum / readingLines.length) * 100);
+  const verifiedPct = readingLines.length === 0 ? 0 : Math.round((scoreSum / readingLines.length) * 100);
 
   document.getElementById("summary-verified").textContent = `${verifiedPct}%`;
   document.getElementById("reading-active").style.display = "none";
   document.getElementById("reading-summary").style.display = "block";
 
   if (typeof window.logProgress === "function") {
-    window.logProgress(
-      "Concentracion de Lectura",
-      `${verifiedPct}% verificado`,
-    );
+    window.logProgress("Concentracion de Lectura", `${verifiedPct}% verificado`);
   }
 }
 
@@ -412,21 +444,16 @@ function stopReadingSession() {
   if (readingCamera) readingCamera.stop();
 }
 
-document
-  .getElementById("start-reading-button")
-  .addEventListener("click", startReadingSession);
-document
-  .getElementById("finish-reading-button")
-  .addEventListener("click", finishReadingSession);
-document
-  .getElementById("reading-restart-button")
-  .addEventListener("click", () => {
-    document.getElementById("reading-text-input").value = "";
-    document.getElementById("reading-pdf-input").value = "";
-    document.getElementById("reading-setup-status").textContent = "";
-    pdfExtractedText = "";
-    document.getElementById("reading-summary").style.display = "none";
-    document.getElementById("reading-setup").style.display = "flex";
-  });
+document.getElementById("start-reading-button").addEventListener("click", startReadingSession);
+document.getElementById("finish-reading-button").addEventListener("click", finishReadingSession);
+document.getElementById("reading-restart-button").addEventListener("click", () => {
+  document.getElementById("reading-pdf-input").value = "";
+  document.getElementById("reading-setup-status").textContent = "";
+  document.getElementById("start-reading-button").disabled = true;
+  pdfExtractedText = "";
+  pdfReady = false;
+  document.getElementById("reading-summary").style.display = "none";
+  document.getElementById("reading-setup").style.display = "flex";
+});
 
 window.stopReadingSession = stopReadingSession;

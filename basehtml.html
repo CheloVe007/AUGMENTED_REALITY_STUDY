@@ -95,111 +95,40 @@
       </div>
     </div>
 
-<div id="reading-screen" class="screen">
-  <header class="top-header">
-    <button class="back-button" data-back="reading">
-      ← Volver al menu
-    </button>
-    <div class="title-block">
-      <h1>Concentracion de Lectura</h1>
-      <p><span id="reading-player-name"></span></p>
-    </div>
-  </header>
-
-  <main class="reading-main">
-    <div id="reading-setup" class="reading-setup">
-      <label for="reading-pdf-input">Sube un PDF para leer</label>
-      <input type="file" id="reading-pdf-input" accept="application/pdf" />
-
-      <p class="reading-or">— o —</p>
-
-      <label for="reading-text-input">Pega el texto de lectura</label>
-      <textarea
-        id="reading-text-input"
-        rows="6"
-        placeholder="Pega aqui el texto..."
-      ></textarea>
-
-      <p id="reading-setup-status" class="reading-setup-status"></p>
-
-      <button id="start-reading-button" class="mode-card wide-btn">
-        Comenzar lectura
-      </button>
-    </div>
-
-    <div id="reading-active" class="reading-active" style="display: none">
-      <div class="reading-panels">
-        <div id="reading-text-panel" class="reading-mask-panel">
-          <div class="progress-track">
-            <div id="reading-progress-fill" class="progress-fill"></div>
-          </div>
-          <div id="reading-lines"></div>
+    <div id="reading-screen" class="screen">
+      <header class="top-header">
+        <button class="back-button" data-back="reading">
+          ← Volver al menu
+        </button>
+        <div class="title-block">
+          <h1>Concentracion de Lectura</h1>
+          <p><span id="reading-player-name"></span></p>
         </div>
-        <div class="reading-camera-panel">
-          <video id="reading_video" autoplay playsinline></video>
-          <canvas id="reading_canvas" width="240" height="180"></canvas>
-          <p id="reading-face-status" class="reading-face-status">
-            Buscando rostro...
-          </p>
-          <p id="reading-gaze-status" class="reading-gaze-status">
-            Mirada: --
-          </p>
-        </div>
-      </div>
-
-      <div class="info-panel-reading">
-        <p>Lineas: <span id="lines-progress">0/0</span></p>
-        <p>Atencion: <span id="attention-progress">0%</span></p>
-        <p>Verificado: <span id="verified-progress">0%</span></p>
-      </div>
-
-      <div class="reading-controls">
-        <button id="prev-line-button" class="back-button">
-          ← Linea anterior
-        </button>
-        <button id="next-line-button" class="back-button">
-          Linea siguiente →
-        </button>
-        <button id="finish-reading-button" class="back-button">
-          Finalizar lectura
-        </button>
-      </div>
-    </div>
-
-    <div id="reading-summary" class="reading-summary" style="display: none">
-      <h2>Resumen de lectura</h2>
-      <p>
-        Lectura verificada:
-        <span id="summary-verified" class="highlight">0%</span>
-      </p>
-      <button id="reading-restart-button" class="mode-card wide-btn">
-        Leer otro texto
-      </button>
-    </div>
-  </main>
-</div>
-
-
-
-
+      </header>
 
       <main class="reading-main">
         <div id="reading-setup" class="reading-setup">
-          <label for="reading-text-input">Pega el texto de lectura</label>
-          <textarea
-            id="reading-text-input"
-            rows="8"
-            placeholder="Pega aqui el texto..."
-          ></textarea>
-          <button id="start-reading-button" class="mode-card wide-btn">
+          <label for="reading-pdf-input">Sube un PDF para comenzar tu lectura</label>
+          <input type="file" id="reading-pdf-input" accept="application/pdf" />
+
+          <p id="reading-setup-status" class="reading-setup-status"></p>
+
+          <button
+            id="start-reading-button"
+            class="mode-card wide-btn"
+            disabled
+          >
             Comenzar lectura
           </button>
         </div>
 
         <div id="reading-active" class="reading-active" style="display: none">
           <div class="reading-panels">
-            <div id="reading-text-panel" class="reading-text-panel">
-              <div id="reading-text-content"></div>
+            <div id="reading-text-panel" class="reading-mask-panel">
+              <div class="progress-track">
+                <div id="reading-progress-fill" class="progress-fill"></div>
+              </div>
+              <div id="reading-lines"></div>
             </div>
             <div class="reading-camera-panel">
               <video id="reading_video" autoplay playsinline></video>
@@ -207,18 +136,39 @@
               <p id="reading-face-status" class="reading-face-status">
                 Buscando rostro...
               </p>
+              <div class="gaze-meter">
+                <div class="gaze-meter-track">
+                  <div id="gaze-meter-dot" class="gaze-meter-dot"></div>
+                </div>
+                <div class="gaze-meter-labels">
+                  <span>Izq.</span>
+                  <span>Centro</span>
+                  <span>Der.</span>
+                </div>
+              </div>
+              <p id="reading-gaze-status" class="reading-gaze-status">
+                Mirada: --
+              </p>
             </div>
           </div>
 
           <div class="info-panel-reading">
-            <p>Texto: <span id="scroll-progress">0%</span></p>
+            <p>Lineas: <span id="lines-progress">0/0</span></p>
             <p>Atencion: <span id="attention-progress">0%</span></p>
             <p>Verificado: <span id="verified-progress">0%</span></p>
           </div>
 
-          <button id="finish-reading-button" class="back-button wide-btn">
-            Finalizar lectura
-          </button>
+          <div class="reading-controls">
+            <button id="prev-line-button" class="back-button">
+              ← Linea anterior
+            </button>
+            <button id="next-line-button" class="back-button">
+              Linea siguiente →
+            </button>
+            <button id="finish-reading-button" class="back-button">
+              Finalizar lectura
+            </button>
+          </div>
         </div>
 
         <div id="reading-summary" class="reading-summary" style="display: none">
@@ -246,17 +196,13 @@
       <main class="exams-main">
         <div id="exam-question-box" class="exam-box">
           <div class="exam-header-row">
-            <p id="exam-question-counter" class="exam-counter">
-              Pregunta 1 de 15
-            </p>
+            <p id="exam-question-counter" class="exam-counter">Pregunta 1 de 15</p>
             <span id="exam-type-badge" class="type-badge">Opcion multiple</span>
           </div>
           <div class="progress-track">
             <div id="exam-progress-fill" class="progress-fill"></div>
           </div>
-          <p id="exam-question-text" class="exam-question-text">
-            Cargando pregunta...
-          </p>
+          <p id="exam-question-text" class="exam-question-text">Cargando pregunta...</p>
           <div id="exam-options" class="exam-options"></div>
           <p id="exam-feedback" class="exam-feedback"></p>
         </div>
@@ -304,7 +250,6 @@
       crossorigin="anonymous"
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script src="assets/question.js"></script>

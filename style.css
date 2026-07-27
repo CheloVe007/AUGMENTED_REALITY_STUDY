@@ -405,27 +405,15 @@ body {
   color: #cbd5e1;
 }
 
-.reading-setup textarea {
-  background: #0f172a;
-  border: 2px solid #334155;
-  border-radius: 8px;
-  color: #f1f5f9;
-  padding: 12px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: vertical;
-  outline: none;
+.mode-card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.reading-setup textarea:focus {
-  border-color: #38bdf8;
-}
-
-.reading-or {
-  text-align: center;
-  color: #64748b;
-  font-size: 0.85rem;
-  margin: 4px 0 12px;
+.mode-card:disabled:hover {
+  transform: none;
+  border-color: #334155;
+  background: #1e293b;
 }
 
 #reading-pdf-input {
@@ -488,7 +476,7 @@ body {
 }
 
 .reading-line {
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   line-height: 1.6;
   color: #e2e8f0;
   padding: 14px 18px;
@@ -501,22 +489,22 @@ body {
 }
 
 .reading-line.upcoming {
-  opacity: 0.12;
-  filter: blur(6px);
-  transform: scale(0.98);
+  opacity: 0.1;
+  filter: blur(7px);
+  transform: scale(0.97);
 }
 
 .reading-line.active {
   opacity: 1;
   filter: blur(0);
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.1);
   border: 1px solid rgba(56, 189, 248, 0.5);
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
-  font-weight: 600;
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.18);
+  padding: 26px 28px;
 }
 
 .reading-line.read {
-  opacity: 0.4;
+  opacity: 0.35;
   filter: blur(0);
   color: #4ade80;
 }
@@ -524,6 +512,39 @@ body {
 .reading-line.read::before {
   content: "✓ ";
   color: #4ade80;
+}
+
+.words-line {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+.word {
+  display: inline-block;
+  margin-right: 0.28em;
+  border-radius: 8px;
+  padding: 2px 6px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.word-upcoming {
+  color: rgba(226, 232, 240, 0.3);
+}
+
+.word-read {
+  color: #4ade80;
+}
+
+.word-current {
+  color: #0f172a;
+  background: #38bdf8;
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
 }
 
 .reading-camera-panel {
@@ -545,6 +566,40 @@ body {
   font-size: 0.85rem;
   color: #94a3b8;
   text-align: center;
+}
+
+.gaze-meter {
+  width: 100%;
+}
+
+.gaze-meter-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1e293b, #334155, #1e293b);
+  overflow: visible;
+  margin-bottom: 4px;
+}
+
+.gaze-meter-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #38bdf8;
+  transform: translate(-50%, -50%);
+  transition: left 0.15s ease;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.85);
+  border: 2px solid #0f172a;
+}
+
+.gaze-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: #64748b;
 }
 
 .reading-gaze-status {
@@ -744,5 +799,12 @@ body {
   .name-input-group input {
     width: 100%;
     max-width: 280px;
+  }
+  .words-line {
+    font-size: 1.6rem;
+  }
+  .reading-mask-panel {
+    height: 340px;
+    padding: 16px;
   }
 }
