@@ -108,16 +108,14 @@
 
       <main class="reading-main">
         <div id="reading-setup" class="reading-setup">
-          <label for="reading-pdf-input">Sube un PDF para comenzar tu lectura</label>
+          <label for="reading-pdf-input"
+            >Sube un PDF para comenzar tu lectura</label
+          >
           <input type="file" id="reading-pdf-input" accept="application/pdf" />
 
           <p id="reading-setup-status" class="reading-setup-status"></p>
 
-          <button
-            id="start-reading-button"
-            class="mode-card wide-btn"
-            disabled
-          >
+          <button id="start-reading-button" class="mode-card wide-btn" disabled>
             Comenzar lectura
           </button>
         </div>
@@ -196,13 +194,17 @@
       <main class="exams-main">
         <div id="exam-question-box" class="exam-box">
           <div class="exam-header-row">
-            <p id="exam-question-counter" class="exam-counter">Pregunta 1 de 15</p>
+            <p id="exam-question-counter" class="exam-counter">
+              Pregunta 1 de 15
+            </p>
             <span id="exam-type-badge" class="type-badge">Opcion multiple</span>
           </div>
           <div class="progress-track">
             <div id="exam-progress-fill" class="progress-fill"></div>
           </div>
-          <p id="exam-question-text" class="exam-question-text">Cargando pregunta...</p>
+          <p id="exam-question-text" class="exam-question-text">
+            Cargando pregunta...
+          </p>
           <div id="exam-options" class="exam-options"></div>
           <p id="exam-feedback" class="exam-feedback"></p>
         </div>

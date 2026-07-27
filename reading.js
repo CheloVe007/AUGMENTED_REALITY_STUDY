@@ -65,7 +65,8 @@ document
       const lineCount = splitIntoLines(pdfExtractedText).length;
 
       if (lineCount === 0) {
-        statusEl.textContent = "El PDF no tiene texto legible. Prueba con otro archivo.";
+        statusEl.textContent =
+          "El PDF no tiene texto legible. Prueba con otro archivo.";
         statusEl.style.color = "#f87171";
         return;
       }
@@ -76,7 +77,8 @@ document
       startBtn.disabled = false;
     } catch (err) {
       pdfExtractedText = "";
-      statusEl.textContent = "No se pudo leer el PDF. Intenta con otro archivo.";
+      statusEl.textContent =
+        "No se pudo leer el PDF. Intenta con otro archivo.";
       statusEl.style.color = "#f87171";
       console.error(err);
     }
@@ -94,7 +96,10 @@ function splitIntoLines(text) {
   sentences.forEach((sentence) => {
     const words = sentence.trim().split(" ").filter(Boolean);
     for (let i = 0; i < words.length; i += CHUNK_WORDS) {
-      const chunk = words.slice(i, i + CHUNK_WORDS).join(" ").trim();
+      const chunk = words
+        .slice(i, i + CHUNK_WORDS)
+        .join(" ")
+        .trim();
       if (chunk) lines.push(chunk);
     }
   });
@@ -111,7 +116,8 @@ function initFaceMesh() {
   const gazeDot = document.getElementById("gaze-meter-dot");
 
   faceMesh = new FaceMesh({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    locateFile: (file) =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
   });
 
   faceMesh.setOptions({
@@ -124,7 +130,13 @@ function initFaceMesh() {
   faceMesh.onResults((results) => {
     readingCtx.save();
     readingCtx.clearRect(0, 0, readingCanvas.width, readingCanvas.height);
-    readingCtx.drawImage(results.image, 0, 0, readingCanvas.width, readingCanvas.height);
+    readingCtx.drawImage(
+      results.image,
+      0,
+      0,
+      readingCanvas.width,
+      readingCanvas.height,
+    );
 
     const now = performance.now();
     const dt = lastFrameTime ? now - lastFrameTime : 0;
@@ -149,7 +161,11 @@ function initFaceMesh() {
         const rightOuter = lm[263];
 
         const leftRatio = ratioBetween(leftIris.x, leftOuter.x, leftInner.x);
-        const rightRatio = ratioBetween(rightIris.x, rightInner.x, rightOuter.x);
+        const rightRatio = ratioBetween(
+          rightIris.x,
+          rightInner.x,
+          rightOuter.x,
+        );
         rawRatio = (leftRatio + rightRatio) / 2;
 
         smoothedGazeRatio =
@@ -172,7 +188,9 @@ function initFaceMesh() {
     }
     readingCtx.restore();
 
-    const mappedRatio = clamp01((smoothedGazeRatio - GAZE_MIN) / (GAZE_MAX - GAZE_MIN));
+    const mappedRatio = clamp01(
+      (smoothedGazeRatio - GAZE_MIN) / (GAZE_MAX - GAZE_MIN),
+    );
 
     updateFaceStatusUI(facePresent, lookingForward, faceStatusEl);
     updateGazeMeterUI(facePresent, mappedRatio, gazeDot);
@@ -235,7 +253,10 @@ function updateGazeStatusUI(facePresent, mappedRatio, el) {
   else if (mappedRatio > 0.65) label = "Final de linea";
 
   if (currentWordSpans.length > 0) {
-    const idx = Math.min(currentWordSpans.length - 1, Math.floor(mappedRatio * currentWordSpans.length));
+    const idx = Math.min(
+      currentWordSpans.length - 1,
+      Math.floor(mappedRatio * currentWordSpans.length),
+    );
     el.textContent = `Mirada: ${label} · palabra ${idx + 1}/${currentWordSpans.length}`;
   } else {
     el.textContent = `Mirada: ${label}`;
@@ -269,7 +290,10 @@ function advanceLineTimer(facePresent, lookingForward, dt, now, mappedRatio) {
 
 function updateWordProgress(ratio) {
   if (currentWordSpans.length === 0) return;
-  const activeIndex = Math.min(currentWordSpans.length - 1, Math.floor(ratio * currentWordSpans.length));
+  const activeIndex = Math.min(
+    currentWordSpans.length - 1,
+    Math.floor(ratio * currentWordSpans.length),
+  );
   currentWordSpans.forEach((span, i) => {
     span.classList.remove("word-read", "word-current", "word-upcoming");
     if (i < activeIndex) span.classList.add("word-read");
@@ -354,7 +378,8 @@ function activateLine(index) {
   renderLineState(index, "active");
   renderActiveLineWords(index);
   for (let i = 0; i < index; i++) renderLineState(i, "read");
-  for (let i = index + 1; i < readingLines.length; i++) renderLineState(i, "upcoming");
+  for (let i = index + 1; i < readingLines.length; i++)
+    renderLineState(i, "upcoming");
 
   const container = document.getElementById("reading-lines");
   const el = container.querySelector(`[data-index="${index}"]`);
@@ -362,17 +387,23 @@ function activateLine(index) {
 }
 
 function updateReadingProgressUI() {
-  const attentionPct = totalSamples === 0 ? 0 : (attentiveSamples / totalSamples) * 100;
+  const attentionPct =
+    totalSamples === 0 ? 0 : (attentiveSamples / totalSamples) * 100;
   const completed = lineScores.filter((s) => s !== undefined).length;
   const scoreSum = lineScores.reduce((a, b) => a + (b || 0), 0);
-  const verifiedPct = readingLines.length === 0 ? 0 : (scoreSum / readingLines.length) * 100;
+  const verifiedPct =
+    readingLines.length === 0 ? 0 : (scoreSum / readingLines.length) * 100;
 
   document.getElementById("lines-progress").textContent =
     `${completed}/${readingLines.length}`;
-  document.getElementById("attention-progress").textContent = `${Math.round(attentionPct)}%`;
-  document.getElementById("verified-progress").textContent = `${Math.round(verifiedPct)}%`;
+  document.getElementById("attention-progress").textContent =
+    `${Math.round(attentionPct)}%`;
+  document.getElementById("verified-progress").textContent =
+    `${Math.round(verifiedPct)}%`;
   document.getElementById("reading-progress-fill").style.width =
-    readingLines.length === 0 ? "0%" : `${(completed / readingLines.length) * 100}%`;
+    readingLines.length === 0
+      ? "0%"
+      : `${(completed / readingLines.length) * 100}%`;
 }
 
 // ---------- controles manuales (respaldo si la deteccion falla) ----------
@@ -420,7 +451,8 @@ function startReadingSession() {
   document.getElementById("reading-summary").style.display = "none";
 
   readingCamera.start().catch((err) => {
-    document.getElementById("reading-face-status").textContent = "Error al acceder a la camara";
+    document.getElementById("reading-face-status").textContent =
+      "Error al acceder a la camara";
     console.error(err);
   });
 }
@@ -429,14 +461,20 @@ function finishReadingSession() {
   if (readingCamera) readingCamera.stop();
 
   const scoreSum = lineScores.reduce((a, b) => a + (b || 0), 0);
-  const verifiedPct = readingLines.length === 0 ? 0 : Math.round((scoreSum / readingLines.length) * 100);
+  const verifiedPct =
+    readingLines.length === 0
+      ? 0
+      : Math.round((scoreSum / readingLines.length) * 100);
 
   document.getElementById("summary-verified").textContent = `${verifiedPct}%`;
   document.getElementById("reading-active").style.display = "none";
   document.getElementById("reading-summary").style.display = "block";
 
   if (typeof window.logProgress === "function") {
-    window.logProgress("Concentracion de Lectura", `${verifiedPct}% verificado`);
+    window.logProgress(
+      "Concentracion de Lectura",
+      `${verifiedPct}% verificado`,
+    );
   }
 }
 
@@ -444,16 +482,22 @@ function stopReadingSession() {
   if (readingCamera) readingCamera.stop();
 }
 
-document.getElementById("start-reading-button").addEventListener("click", startReadingSession);
-document.getElementById("finish-reading-button").addEventListener("click", finishReadingSession);
-document.getElementById("reading-restart-button").addEventListener("click", () => {
-  document.getElementById("reading-pdf-input").value = "";
-  document.getElementById("reading-setup-status").textContent = "";
-  document.getElementById("start-reading-button").disabled = true;
-  pdfExtractedText = "";
-  pdfReady = false;
-  document.getElementById("reading-summary").style.display = "none";
-  document.getElementById("reading-setup").style.display = "flex";
-});
+document
+  .getElementById("start-reading-button")
+  .addEventListener("click", startReadingSession);
+document
+  .getElementById("finish-reading-button")
+  .addEventListener("click", finishReadingSession);
+document
+  .getElementById("reading-restart-button")
+  .addEventListener("click", () => {
+    document.getElementById("reading-pdf-input").value = "";
+    document.getElementById("reading-setup-status").textContent = "";
+    document.getElementById("start-reading-button").disabled = true;
+    pdfExtractedText = "";
+    pdfReady = false;
+    document.getElementById("reading-summary").style.display = "none";
+    document.getElementById("reading-setup").style.display = "flex";
+  });
 
 window.stopReadingSession = stopReadingSession;
