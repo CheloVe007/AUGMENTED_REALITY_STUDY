@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div id="home-screen" class="screen active">
+    <div id="name-screen" class="screen active">
       <div class="home-content">
         <h1 class="logo">AURA-3D</h1>
         <p class="tagline">
@@ -24,7 +24,21 @@
           />
         </div>
 
-        <h2 class="section-title">Elige un modo de aprendizaje</h2>
+        <button id="continue-button" class="mode-card wide-btn">
+          Continuar
+        </button>
+
+        <p id="home-error" class="home-error"></p>
+      </div>
+    </div>
+
+    <div id="menu-screen" class="screen">
+      <div class="home-content">
+        <h1 class="logo">AURA-3D</h1>
+        <p class="tagline">
+          Hola, <span id="menu-player-name"></span> — elige un modo de
+          aprendizaje
+        </p>
 
         <div class="mode-grid">
           <button class="mode-card" data-mode="ar-quiz">
@@ -33,26 +47,30 @@
             <span class="mode-desc">Mueve objetos 3D con gestos</span>
           </button>
 
-          <button class="mode-card" data-mode="reading">
-            <span class="mode-icon">📖</span>
-            <span class="mode-title">Concentracion de Lectura</span>
-            <span class="mode-desc">Lee con verificacion de atencion</span>
+          <button class="mode-card" data-mode="sketch">
+            <span class="mode-icon">✏️</span>
+            <span class="mode-title">De Boceto a Web Live</span>
+            <span class="mode-desc"
+              >Dibuja una web y velo generado al instante</span
+            >
           </button>
 
-          <button class="mode-card" data-mode="exams">
-            <span class="mode-icon">📝</span>
-            <span class="mode-title">Examenes</span>
-            <span class="mode-desc">Responde preguntas cortas</span>
+          <button class="mode-card" data-mode="codeavatar">
+            <span class="mode-icon">🧑‍💻</span>
+            <span class="mode-title">Code-Avatar: POO en Vivo</span>
+            <span class="mode-desc">Un objeto real se vuelve una clase JS</span>
           </button>
 
           <button class="mode-card" data-mode="progress">
             <span class="mode-icon">📊</span>
-            <span class="mode-title">Progreso</span>
-            <span class="mode-desc">Revisa tu historial</span>
+            <span class="mode-title">Registro de Estudiantes</span>
+            <span class="mode-desc">Nombres y porcentaje de avance</span>
           </button>
         </div>
 
-        <p id="home-error" class="home-error"></p>
+        <button class="back-button change-user-btn" data-back="change-user">
+          ← Cambiar de usuario
+        </button>
       </div>
     </div>
 
@@ -95,124 +113,189 @@
       </div>
     </div>
 
-    <div id="reading-screen" class="screen">
+    <div id="sketch-screen" class="screen">
       <header class="top-header">
-        <button class="back-button" data-back="reading">
-          ← Volver al menu
-        </button>
+        <button class="back-button" data-back="sketch">← Volver al menu</button>
         <div class="title-block">
-          <h1>Concentracion de Lectura</h1>
-          <p><span id="reading-player-name"></span></p>
+          <h1>De Boceto a Web Live</h1>
+          <p><span id="sketch-player-name"></span></p>
         </div>
       </header>
 
-      <main class="reading-main">
-        <div id="reading-setup" class="reading-setup">
-          <label for="reading-pdf-input"
-            >Sube un PDF para comenzar tu lectura</label
-          >
-          <input type="file" id="reading-pdf-input" accept="application/pdf" />
-
-          <p id="reading-setup-status" class="reading-setup-status"></p>
-
-          <button id="start-reading-button" class="mode-card wide-btn" disabled>
-            Comenzar lectura
-          </button>
-        </div>
-
-        <div id="reading-active" class="reading-active" style="display: none">
-          <div class="reading-panels">
-            <div id="reading-text-panel" class="reading-mask-panel">
-              <div class="progress-track">
-                <div id="reading-progress-fill" class="progress-fill"></div>
-              </div>
-              <div id="reading-lines"></div>
+      <main class="sketch-main">
+        <div class="sketch-panels">
+          <div class="sketch-camera-panel">
+            <div class="sketch-video-wrap">
+              <video id="sketch_video" autoplay playsinline></video>
+              <canvas id="sketch_canvas"></canvas>
             </div>
-            <div class="reading-camera-panel">
-              <video id="reading_video" autoplay playsinline></video>
-              <canvas id="reading_canvas" width="240" height="180"></canvas>
-              <p id="reading-face-status" class="reading-face-status">
-                Buscando rostro...
-              </p>
-              <div class="gaze-meter">
-                <div class="gaze-meter-track">
-                  <div id="gaze-meter-dot" class="gaze-meter-dot"></div>
-                </div>
-                <div class="gaze-meter-labels">
-                  <span>Izq.</span>
-                  <span>Centro</span>
-                  <span>Der.</span>
-                </div>
-              </div>
-              <p id="reading-gaze-status" class="reading-gaze-status">
-                Mirada: --
-              </p>
+
+            <p id="sketch-status" class="sketch-status">
+              Cargando motor de vision (OpenCV.js)...
+            </p>
+
+            <div class="sketch-controls">
+              <button id="capture-sketch-button" class="mode-card wide-btn">
+                📸 Capturar y Generar
+              </button>
+              <button
+                id="retry-sketch-button"
+                class="back-button"
+                style="display: none"
+              >
+                Tomar otra foto
+              </button>
+            </div>
+
+            <p class="sketch-hint">
+              Dibuja en una hoja: un rectangulo ancho arriba = encabezado, una
+              franja angosta debajo = menu, cuadros pequeños = botones, lineas
+              largas y bajitas = parrafos, marcos grandes = contenedores.
+              Escribe el texto dentro de cada figura. Encuadra toda la hoja y
+              presiona Capturar.
+            </p>
+          </div>
+
+          <div id="sketch-results" class="sketch-results" style="display: none">
+            <div class="sketch-tabs">
+              <button class="sketch-tab active" data-tab="preview">
+                Vista previa
+              </button>
+              <button class="sketch-tab" data-tab="html">HTML</button>
+              <button class="sketch-tab" data-tab="css">CSS</button>
+            </div>
+
+            <div id="sketch-tab-preview" class="sketch-tab-panel active">
+              <iframe
+                id="sketch-preview-frame"
+                title="Vista previa generada"
+              ></iframe>
+            </div>
+            <div id="sketch-tab-html" class="sketch-tab-panel">
+              <button class="copy-code-btn" data-copy="html">
+                Copiar HTML
+              </button>
+              <pre><code id="sketch-html-code"></code></pre>
+            </div>
+            <div id="sketch-tab-css" class="sketch-tab-panel">
+              <button class="copy-code-btn" data-copy="css">Copiar CSS</button>
+              <pre><code id="sketch-css-code"></code></pre>
+            </div>
+
+            <div class="sketch-detected-list">
+              <h3>Elementos detectados</h3>
+              <div id="sketch-elements-list"></div>
             </div>
           </div>
-
-          <div class="info-panel-reading">
-            <p>Lineas: <span id="lines-progress">0/0</span></p>
-            <p>Atencion: <span id="attention-progress">0%</span></p>
-            <p>Verificado: <span id="verified-progress">0%</span></p>
-          </div>
-
-          <div class="reading-controls">
-            <button id="prev-line-button" class="back-button">
-              ← Linea anterior
-            </button>
-            <button id="next-line-button" class="back-button">
-              Linea siguiente →
-            </button>
-            <button id="finish-reading-button" class="back-button">
-              Finalizar lectura
-            </button>
-          </div>
         </div>
 
-        <div id="reading-summary" class="reading-summary" style="display: none">
-          <h2>Resumen de lectura</h2>
-          <p>
-            Lectura verificada:
-            <span id="summary-verified" class="highlight">0%</span>
-          </p>
-          <button id="reading-restart-button" class="mode-card wide-btn">
-            Leer otro texto
-          </button>
-        </div>
+        <p id="sketch-progress-note" class="sketch-progress-note"></p>
       </main>
     </div>
 
-    <div id="exams-screen" class="screen">
+    <div id="codeavatar-screen" class="screen">
       <header class="top-header">
-        <button class="back-button" data-back="exams">← Volver al menu</button>
+        <button class="back-button" data-back="codeavatar">
+          ← Volver al menu
+        </button>
         <div class="title-block">
-          <h1>Examenes</h1>
-          <p><span id="exam-player-name"></span></p>
+          <h1>Code-Avatar: POO en Vivo</h1>
+          <p><span id="ca-player-name"></span></p>
         </div>
       </header>
 
-      <main class="exams-main">
-        <div id="exam-question-box" class="exam-box">
-          <div class="exam-header-row">
-            <p id="exam-question-counter" class="exam-counter">
-              Pregunta 1 de 15
-            </p>
-            <span id="exam-type-badge" class="type-badge">Opcion multiple</span>
-          </div>
-          <div class="progress-track">
-            <div id="exam-progress-fill" class="progress-fill"></div>
-          </div>
-          <p id="exam-question-text" class="exam-question-text">
-            Cargando pregunta...
-          </p>
-          <div id="exam-options" class="exam-options"></div>
-          <p id="exam-feedback" class="exam-feedback"></p>
+      <main class="ca-main">
+        <p id="ca-status" class="ca-status">
+          Cargando motor de vision (OpenCV.js)...
+        </p>
+
+        <div class="ca-palette">
+          <span class="ca-palette-label">Color a rastrear:</span>
+          <button
+            class="ca-color-btn"
+            data-color="rojo"
+            style="--swatch: #ef4444"
+          >
+            Rojo
+          </button>
+          <button
+            class="ca-color-btn"
+            data-color="naranja"
+            style="--swatch: #f97316"
+          >
+            Naranja
+          </button>
+          <button
+            class="ca-color-btn"
+            data-color="amarillo"
+            style="--swatch: #facc15"
+          >
+            Amarillo
+          </button>
+          <button
+            class="ca-color-btn"
+            data-color="verde"
+            style="--swatch: #22c55e"
+          >
+            Verde
+          </button>
+          <button
+            class="ca-color-btn"
+            data-color="azul"
+            style="--swatch: #3b82f6"
+          >
+            Azul
+          </button>
         </div>
 
-        <div id="exam-summary" class="exam-box" style="display: none">
-          <h2>Resultado</h2>
-          <p>Puntaje: <span id="exam-score" class="highlight">0%</span></p>
-          <button id="exam-restart-button" class="mode-card wide-btn">
+        <div id="ca-live-panels" class="ca-panels">
+          <div class="ca-camera-panel">
+            <div class="ca-video-wrap">
+              <video id="ca_video" autoplay playsinline muted></video>
+              <canvas id="ca_overlay" width="320" height="240"></canvas>
+            </div>
+            <div class="ca-state-row">
+              <span>Estado del objeto:</span>
+              <span id="ca-state-badge" class="type-badge ca-state-badge"
+                >Sin objeto</span
+              >
+            </div>
+            <p class="ca-hint">
+              Sostén un objeto de ese color frente a la camara (marcador, taza,
+              tarjeta). Muevelo, quedate quieto y luego tapalo con la mano para
+              ver como cambian sus atributos y se llaman sus metodos.
+            </p>
+          </div>
+
+          <div class="ca-code-panel">
+            <h3>Clase (definicion)</h3>
+            <pre class="ca-code-block"><code id="ca-class-code"></code></pre>
+
+            <h3>Instancia en memoria (en vivo)</h3>
+            <pre
+              class="ca-code-block ca-instance-block"
+            ><code id="ca-instance-code"></code></pre>
+
+            <h3>Consola de metodos invocados</h3>
+            <div id="ca-console" class="ca-console"></div>
+          </div>
+        </div>
+
+        <p id="ca-progress-note" class="ca-progress-note">
+          Conceptos observados: 0/6
+        </p>
+
+        <button id="ca-finish-button" class="back-button">
+          Finalizar sesion
+        </button>
+
+        <div id="ca-summary" class="exam-box" style="display: none">
+          <h2>Sesion de Code-Avatar completada</h2>
+          <p>
+            Conceptos de POO observados:
+            <span id="ca-summary-score" class="highlight">0%</span>
+          </p>
+          <button id="ca-restart-button" class="mode-card wide-btn">
             Intentar de nuevo
           </button>
         </div>
@@ -225,12 +308,15 @@
           ← Volver al menu
         </button>
         <div class="title-block">
-          <h1>Progreso</h1>
-          <p><span id="progress-player-name"></span></p>
+          <h1>Registro de Estudiantes</h1>
+          <p>Nombre y porcentaje de avance guardado en este dispositivo</p>
         </div>
       </header>
 
       <main class="progress-main">
+        <button id="clear-registry-button" class="back-button danger-btn">
+          🗑 Borrar todo el registro
+        </button>
         <div id="progress-list" class="progress-list"></div>
       </main>
     </div>
@@ -247,17 +333,15 @@
       src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"
       crossorigin="anonymous"
     ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
-      crossorigin="anonymous"
-    ></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <script src="https://docs.opencv.org/4.9.0/opencv.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script src="assets/question.js"></script>
     <script src="vision3d.js"></script>
-    <script src="reading.js"></script>
-    <script src="exams.js"></script>
+    <script src="sketch.js"></script>
+    <script src="codeavatar.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

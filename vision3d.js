@@ -24,12 +24,7 @@ const SLOT_DEPTH = 0.26;
 // ---- small tween manager, stepped every render frame ----
 let activeAnimations = [];
 function animate(duration, onUpdate, onComplete) {
-  activeAnimations.push({
-    start: performance.now(),
-    duration,
-    onUpdate,
-    onComplete,
-  });
+  activeAnimations.push({ start: performance.now(), duration, onUpdate, onComplete });
 }
 function stepAnimations(now) {
   activeAnimations = activeAnimations.filter((anim) => {
@@ -46,36 +41,11 @@ function stepAnimations(now) {
 
 // ---- card visuals ----
 const CARD_STYLES = {
-  default: {
-    border: "#38bdf8",
-    fill1: "#1e293b",
-    fill2: "#152034",
-    glow: null,
-  },
-  hover: {
-    border: "#facc15",
-    fill1: "#2a2410",
-    fill2: "#1e1a0a",
-    glow: "rgba(250,204,21,0.35)",
-  },
-  correct: {
-    border: "#4ade80",
-    fill1: "#123524",
-    fill2: "#0d2a1b",
-    glow: "rgba(74,222,128,0.45)",
-  },
-  incorrect: {
-    border: "#f87171",
-    fill1: "#3a1414",
-    fill2: "#2a0d0d",
-    glow: "rgba(248,113,113,0.4)",
-  },
-  slot: {
-    border: "#facc15",
-    fill1: "#241d08",
-    fill2: "#181205",
-    glow: "rgba(250,204,21,0.3)",
-  },
+  default: { border: "#38bdf8", fill1: "#1e293b", fill2: "#152034", glow: null },
+  hover: { border: "#facc15", fill1: "#2a2410", fill2: "#1e1a0a", glow: "rgba(250,204,21,0.35)" },
+  correct: { border: "#4ade80", fill1: "#123524", fill2: "#0d2a1b", glow: "rgba(74,222,128,0.45)" },
+  incorrect: { border: "#f87171", fill1: "#3a1414", fill2: "#2a0d0d", glow: "rgba(248,113,113,0.4)" },
+  slot: { border: "#facc15", fill1: "#241d08", fill2: "#181205", glow: "rgba(250,204,21,0.3)" },
 };
 
 function roundRectPath(ctx, x, y, w, h, r) {
@@ -127,14 +97,7 @@ function makeCardTexture(text, styleKey, subtitle) {
   ctx.textBaseline = "middle";
   const fontSize = text.length > 10 ? 26 : 32;
   ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
-  wrapCanvasText(
-    ctx,
-    text,
-    canvas.width / 2,
-    subtitle ? 74 : 88,
-    270,
-    fontSize + 6,
-  );
+  wrapCanvasText(ctx, text, canvas.width / 2, subtitle ? 74 : 88, 270, fontSize + 6);
 
   if (subtitle) {
     ctx.font = "500 20px 'Segoe UI', sans-serif";
@@ -170,11 +133,7 @@ function makeSlotTexture(state) {
   const ctx = canvas.getContext("2d");
 
   const style =
-    state === "correct"
-      ? CARD_STYLES.correct
-      : state === "incorrect"
-        ? CARD_STYLES.incorrect
-        : CARD_STYLES.slot;
+    state === "correct" ? CARD_STYLES.correct : state === "incorrect" ? CARD_STYLES.incorrect : CARD_STYLES.slot;
 
   ctx.save();
   ctx.shadowColor = style.glow;
@@ -199,8 +158,7 @@ function makeSlotTexture(state) {
   ctx.font = "bold 64px 'Segoe UI', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const symbol =
-    state === "correct" ? "\u2713" : state === "incorrect" ? "\u2717" : "?";
+  const symbol = state === "correct" ? "\u2713" : state === "incorrect" ? "\u2717" : "?";
   ctx.fillText(symbol, canvas.width / 2, canvas.height / 2);
 
   return new THREE.CanvasTexture(canvas);
@@ -209,11 +167,7 @@ function makeSlotTexture(state) {
 // ---- tarjetas 3D reales: caja con bisel iluminado + cara frontal con la textura ----
 function createEdgeMaterial(styleKey) {
   const style = CARD_STYLES[styleKey] || CARD_STYLES.default;
-  return new THREE.MeshStandardMaterial({
-    color: style.border,
-    roughness: 0.45,
-    metalness: 0.28,
-  });
+  return new THREE.MeshStandardMaterial({ color: style.border, roughness: 0.45, metalness: 0.28 });
 }
 
 function createCardMesh(text, width, height, depth, styleKey, subtitle) {
@@ -237,10 +191,7 @@ function createSlotMesh(width, height, depth) {
     roughness: 0.5,
     metalness: 0.22,
   });
-  const front = new THREE.MeshBasicMaterial({
-    map: makeSlotTexture("default"),
-    transparent: true,
-  });
+  const front = new THREE.MeshBasicMaterial({ map: makeSlotTexture("default"), transparent: true });
   return new THREE.Mesh(geometry, [edge, edge, edge, edge, front, edge]);
 }
 
@@ -258,12 +209,7 @@ function setCardState(mesh, styleKey, subtitle) {
 }
 
 function setSlotState(mesh, state) {
-  const style =
-    state === "correct"
-      ? CARD_STYLES.correct
-      : state === "incorrect"
-        ? CARD_STYLES.incorrect
-        : CARD_STYLES.slot;
+  const style = state === "correct" ? CARD_STYLES.correct : state === "incorrect" ? CARD_STYLES.incorrect : CARD_STYLES.slot;
   const materials = mesh.material;
   [0, 1, 2, 3, 5].forEach((idx) => materials[idx].color.set(style.border));
   if (materials[4].map) materials[4].map.dispose();
@@ -293,8 +239,7 @@ function initHands() {
   const gestureEl = document.getElementById("gesture");
 
   hands = new Hands({
-    locateFile: (file) =>
-      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
   });
 
   hands.setOptions({
@@ -315,14 +260,12 @@ function initHands() {
     canvasCtx.translate(canvasElement.width, 0);
     canvasCtx.scale(-1, 1);
 
-    const handFound =
-      results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+    const handFound = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
     if (handFound) {
       handStableFrames = Math.min(handStableFrames + 1, 30);
       handSeenLastFrame = true;
-      statusEl.textContent =
-        handStableFrames > 6 ? "Mano estable ✔" : "Mano detectada...";
+      statusEl.textContent = handStableFrames > 6 ? "Mano estable ✔" : "Mano detectada...";
       statusEl.style.color = handStableFrames > 6 ? "#4ade80" : "#facc15";
 
       const landmarks = results.multiHandLandmarks[0];
@@ -367,9 +310,7 @@ function initHands() {
       canvasCtx.shadowBlur = 18;
       canvasCtx.beginPath();
       canvasCtx.arc(px, py, canvasElement.width * 0.018, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = isPinching
-        ? "rgba(248,113,113,0.9)"
-        : "rgba(56,189,248,0.9)";
+      canvasCtx.fillStyle = isPinching ? "rgba(248,113,113,0.9)" : "rgba(56,189,248,0.9)";
       canvasCtx.fill();
       canvasCtx.lineWidth = 2;
       canvasCtx.strokeStyle = "#f1f5f9";
@@ -427,10 +368,7 @@ function initScene() {
   scene.add(fillLight);
 
   const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
-  pointerMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 16, 16),
-    pointerMaterial,
-  );
+  pointerMesh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), pointerMaterial);
   scene.add(pointerMesh);
 }
 
@@ -502,9 +440,7 @@ function loadQuestion(index, animateIn = true) {
   updateBanner(question, index);
   const questStatusEl = document.getElementById("quest-status");
   questStatusEl.textContent =
-    question.type === "vf"
-      ? "Arrastra Verdadero o Falso al espacio"
-      : "Arrastra la respuesta correcta";
+    question.type === "vf" ? "Arrastra Verdadero o Falso al espacio" : "Arrastra la respuesta correcta";
   questStatusEl.style.color = "#94a3b8";
 
   const visible = getVisibleSizeAtZ(0);
@@ -518,22 +454,12 @@ function loadQuestion(index, animateIn = true) {
   const cardHeight = cardWidth * 0.55;
   const startX = -usableWidth / 2 + spacing / 2;
 
-  targetSlotMesh = createSlotMesh(
-    cardWidth * 1.15,
-    cardHeight * 1.15,
-    SLOT_DEPTH,
-  );
+  targetSlotMesh = createSlotMesh(cardWidth * 1.15, cardHeight * 1.15, SLOT_DEPTH);
   targetSlotMesh.position.set(0, topY, 0);
   scene.add(targetSlotMesh);
 
   question.options.forEach((optionText, i) => {
-    const mesh = createCardMesh(
-      optionText,
-      cardWidth,
-      cardHeight,
-      CARD_DEPTH,
-      "default",
-    );
+    const mesh = createCardMesh(optionText, cardWidth, cardHeight, CARD_DEPTH, "default");
 
     // disposicion en abanico: las tarjetas de los extremos se retrasan un poco en Z,
     // dando una sensacion real de profundidad/curvatura tridimensional
@@ -737,8 +663,7 @@ function renderLoop(now) {
     const phase = mesh.userData.floatPhase || 0;
     mesh.rotation.y = Math.sin(t * 0.6 + phase) * 0.14;
     mesh.rotation.x = Math.cos(t * 0.5 + phase) * 0.06;
-    mesh.position.y =
-      mesh.userData.originalPosition.y + Math.sin(t * 0.8 + phase) * 0.06;
+    mesh.position.y = mesh.userData.originalPosition.y + Math.sin(t * 0.8 + phase) * 0.06;
   });
 
   renderer.render(scene, camera3D);
@@ -754,9 +679,7 @@ function startARExperience() {
   if (!scene) initScene();
 
   document.getElementById("quiz-summary").style.display = "none";
-  document
-    .getElementById("ar-viewport")
-    .classList.remove("correct-flash", "incorrect-flash");
+  document.getElementById("ar-viewport").classList.remove("correct-flash", "incorrect-flash");
 
   resizeARViewport();
   window.addEventListener("resize", handleViewportResize);

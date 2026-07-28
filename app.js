@@ -1,8 +1,9 @@
 const screens = {
-  home: document.getElementById("home-screen"),
+  name: document.getElementById("name-screen"),
+  menu: document.getElementById("menu-screen"),
   "ar-quiz": document.getElementById("ar-screen"),
-  reading: document.getElementById("reading-screen"),
-  exams: document.getElementById("exams-screen"),
+  sketch: document.getElementById("sketch-screen"),
+  codeavatar: document.getElementById("codeavatar-screen"),
   progress: document.getElementById("progress-screen"),
 };
 
@@ -13,6 +14,7 @@ function showScreen(key) {
   screens[key].classList.add("active");
 }
 
+// ---------- registro de progreso (localStorage) ----------
 function logProgress(activity, result) {
   const record = {
     name: currentPlayerName,
@@ -25,72 +27,157 @@ function logProgress(activity, result) {
   localStorage.setItem("aura3d_progress", JSON.stringify(history));
 }
 
-function renderProgress() {
-  const history = JSON.parse(
-    localStorage.getItem("aura3d_progress") || "[]",
-  ).filter((r) => r.name === currentPlayerName);
+function extractPercent(resultStr) {
+  const match = /(\d+)\s*%/.exec(resultStr || "");
+  return match ? parseInt(match[1], 10) : null;
+}
 
+function renderRegistry() {
+  const history = JSON.parse(localStorage.getItem("aura3d_progress") || "[]");
   const container = document.getElementById("progress-list");
   container.innerHTML = "";
 
   if (history.length === 0) {
     container.innerHTML =
-      '<p class="progress-empty">Todavia no hay actividades registradas.</p>';
+      '<p class="progress-empty">Todavia no hay estudiantes registrados en este dispositivo.</p>';
     return;
   }
 
+  const byName = {};
   history.forEach((record) => {
-    const item = document.createElement("div");
-    item.className = "progress-item";
-    item.innerHTML = `
-      <p class="progress-activity">${record.activity}</p>
-      <p class="progress-result">${record.result}</p>
-      <p class="progress-date">${record.date}</p>
-    `;
-    container.appendChild(item);
+    if (!byName[record.name]) byName[record.name] = [];
+    byName[record.name].push(record);
   });
+
+  const table = document.createElement("div");
+  table.className = "registry-table";
+
+  const head = document.createElement("div");
+  head.className = "registry-row registry-head";
+  head.innerHTML = `
+    <span>Estudiante</span>
+    <span>Actividades</span>
+    <span>Promedio</span>
+  `;
+  table.appendChild(head);
+
+  Object.keys(byName)
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((name) => {
+      const records = byName[name];
+      const percents = records.map((r) => extractPercent(r.result)).filter((p) => p !== null);
+      const avg = percents.length
+        ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length)
+        : null;
+
+      const row = document.createElement("div");
+      row.className = "registry-row";
+      row.innerHTML = `
+        <span class="registry-name">${name}</span>
+        <span>${records.length}</span>
+        <span class="registry-avg">${avg !== null ? avg + "%" : "—"}</span>
+      `;
+      row.addEventListener("click", () => toggleStudentDetail(row, records));
+      table.appendChild(row);
+    });
+
+  container.appendChild(table);
 }
 
+function toggleStudentDetail(row, records) {
+  const existing = row.nextElementSibling;
+  if (existing && existing.classList.contains("registry-detail")) {
+    existing.remove();
+    return;
+  }
+  document.querySelectorAll(".registry-detail").forEach((d) => d.remove());
+
+  const detail = document.createElement("div");
+  detail.className = "registry-detail";
+  detail.innerHTML = records
+    .map(
+      (r) => `
+      <div class="progress-item">
+        <p class="progress-activity">${r.activity}</p>
+        <p class="progress-result">${r.result}</p>
+        <p class="progress-date">${r.date}</p>
+      </div>`,
+    )
+    .join("");
+  row.after(detail);
+}
+
+document.getElementById("clear-registry-button").addEventListener("click", () => {
+  const confirmed = confirm(
+    "Esto borrara el registro de TODOS los estudiantes guardado en este dispositivo. Deseas continuar?",
+  );
+  if (!confirmed) return;
+  localStorage.removeItem("aura3d_progress");
+  renderRegistry();
+});
+
+// ---------- pantalla 1: nombre ----------
+function goToMenu() {
+  const name = document.getElementById("user-name").value.trim();
+  const homeError = document.getElementById("home-error");
+
+  if (!name) {
+    homeError.textContent = "Por favor escribe tu nombre antes de continuar.";
+    homeError.style.color = "#f87171";
+    document.getElementById("user-name").focus();
+    return;
+  }
+
+  homeError.textContent = "";
+  currentPlayerName = name;
+  document.getElementById("menu-player-name").textContent = name;
+  showScreen("menu");
+}
+
+document.getElementById("continue-button").addEventListener("click", goToMenu);
+document.getElementById("user-name").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") goToMenu();
+});
+
+// ---------- pantalla 2: menu ----------
 document.querySelectorAll(".mode-card[data-mode]").forEach((card) => {
   card.addEventListener("click", () => {
     const mode = card.dataset.mode;
-    const name = document.getElementById("user-name").value.trim();
-    const homeError = document.getElementById("home-error");
-
-    if (!name) {
-      homeError.textContent = "Por favor escribe tu nombre antes de continuar.";
-      homeError.style.color = "#f87171";
-      document.getElementById("user-name").focus();
-      return;
-    }
-
-    homeError.textContent = "";
-    currentPlayerName = name;
 
     if (mode === "ar-quiz") {
       showScreen("ar-quiz");
       startARExperience();
-    } else if (mode === "reading") {
-      document.getElementById("reading-player-name").textContent = name;
-      showScreen("reading");
-    } else if (mode === "exams") {
-      document.getElementById("exam-player-name").textContent = name;
-      showScreen("exams");
-      startExam();
+    } else if (mode === "sketch") {
+      document.getElementById("sketch-player-name").textContent = currentPlayerName;
+      showScreen("sketch");
+      startSketchSession();
+    } else if (mode === "codeavatar") {
+      document.getElementById("ca-player-name").textContent = currentPlayerName;
+      showScreen("codeavatar");
+      startCodeAvatarSession();
     } else if (mode === "progress") {
-      document.getElementById("progress-player-name").textContent = name;
       showScreen("progress");
-      renderProgress();
+      renderRegistry();
     }
   });
 });
 
+// ---------- botones de "volver" ----------
 document.querySelectorAll(".back-button[data-back]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const mode = btn.dataset.back;
-    if (mode === "ar-quiz") stopARExperience();
-    if (mode === "reading") stopReadingSession();
-    showScreen("home");
+    const key = btn.dataset.back;
+
+    if (key === "change-user") {
+      currentPlayerName = "";
+      document.getElementById("user-name").value = "";
+      showScreen("name");
+      return;
+    }
+
+    if (key === "ar-quiz") stopARExperience();
+    if (key === "sketch") stopSketchSession();
+    if (key === "codeavatar") stopCodeAvatarSession();
+    showScreen("menu");
   });
 });
 
