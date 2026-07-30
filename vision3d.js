@@ -711,9 +711,15 @@ function stopARExperience() {
   window.removeEventListener("resize", handleViewportResize);
   window.removeEventListener("orientationchange", handleViewportResize);
   document.getElementById("status").textContent = "Camara detenida";
+  document.getElementById("ar-guide-overlay").style.display = "flex";
 }
 
 document.getElementById("quiz-restart-button").addEventListener("click", () => {
+  startARExperience();
+});
+
+document.getElementById("ar-guide-start-button").addEventListener("click", () => {
+  document.getElementById("ar-guide-overlay").style.display = "none";
   startARExperience();
 });
 

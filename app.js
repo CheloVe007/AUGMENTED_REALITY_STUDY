@@ -146,15 +146,12 @@ document.querySelectorAll(".mode-card[data-mode]").forEach((card) => {
 
     if (mode === "ar-quiz") {
       showScreen("ar-quiz");
-      startARExperience();
     } else if (mode === "sketch") {
       document.getElementById("sketch-player-name").textContent = currentPlayerName;
       showScreen("sketch");
-      startSketchSession();
     } else if (mode === "codeavatar") {
       document.getElementById("ca-player-name").textContent = currentPlayerName;
       showScreen("codeavatar");
-      startCodeAvatarSession();
     } else if (mode === "progress") {
       showScreen("progress");
       renderRegistry();

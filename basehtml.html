@@ -36,8 +36,7 @@
       <div class="home-content">
         <h1 class="logo">AURA-3D</h1>
         <p class="tagline">
-          Hola, <span id="menu-player-name"></span> — elige un modo de
-          aprendizaje
+          Hola, <span id="menu-player-name"></span> — elige un modo de aprendizaje
         </p>
 
         <div class="mode-grid">
@@ -50,9 +49,7 @@
           <button class="mode-card" data-mode="sketch">
             <span class="mode-icon">✏️</span>
             <span class="mode-title">De Boceto a Web Live</span>
-            <span class="mode-desc"
-              >Dibuja una web y velo generado al instante</span
-            >
+            <span class="mode-desc">Dibuja una web y velo generado al instante</span>
           </button>
 
           <button class="mode-card" data-mode="codeavatar">
@@ -79,6 +76,22 @@
         <video id="input_video" autoplay playsinline></video>
         <canvas id="output_canvas"></canvas>
         <canvas id="three_canvas"></canvas>
+
+        <div id="ar-guide-overlay" class="mode-guide-overlay">
+          <div class="mode-guide-card">
+            <h2>Como jugar</h2>
+            <ul class="mode-guide-list">
+              <li>🖐️ Muestra tu mano frente a la camara.</li>
+              <li>🤏 Junta el pulgar y el indice (como un pellizco) sobre una tarjeta para tomarla.</li>
+              <li>➡️ Sin soltar el pellizco, mueve la mano hasta el espacio con el signo "?".</li>
+              <li>✋ Abre la mano ahi para soltar la tarjeta.</li>
+              <li>✅ Si es la respuesta correcta, avanzas solo a la siguiente pregunta.</li>
+            </ul>
+            <button id="ar-guide-start-button" class="mode-card wide-btn">
+              Comenzar
+            </button>
+          </div>
+        </div>
 
         <div id="ar-top-overlay">
           <button class="back-button" data-back="ar-quiz">← Menu</button>
@@ -115,7 +128,9 @@
 
     <div id="sketch-screen" class="screen">
       <header class="top-header">
-        <button class="back-button" data-back="sketch">← Volver al menu</button>
+        <button class="back-button" data-back="sketch">
+          ← Volver al menu
+        </button>
         <div class="title-block">
           <h1>De Boceto a Web Live</h1>
           <p><span id="sketch-player-name"></span></p>
@@ -123,73 +138,170 @@
       </header>
 
       <main class="sketch-main">
-        <div class="sketch-panels">
-          <div class="sketch-camera-panel">
-            <div class="sketch-video-wrap">
-              <video id="sketch_video" autoplay playsinline></video>
-              <canvas id="sketch_canvas"></canvas>
+        <div id="sketch-guide" class="mode-guide">
+          <h2>Guia de simbolos para tu boceto</h2>
+          <p class="mode-guide-intro">
+            Dibuja un rectangulo o cuadro por cada elemento y escribe el
+            <strong>numero</strong> al inicio (bien grande), seguido del texto
+            real si quieres. El sistema primero busca estos numeros (se leen
+            mejor que las letras); si no encuentra ninguno, intenta adivinar
+            por la forma del dibujo.
+          </p>
+
+          <div class="legend-grid">
+            <div class="legend-item">
+              <div class="legend-shape legend-wide">1</div>
+              <div>
+                <p class="legend-name">Titulo <code>&lt;header&gt;</code></p>
+                <p class="legend-desc">
+                  Rectangulo ancho, arriba de todo. Escribe "1" + el titulo.
+                </p>
+              </div>
             </div>
 
-            <p id="sketch-status" class="sketch-status">
-              Cargando motor de vision (OpenCV.js)...
-            </p>
+            <div class="legend-item">
+              <div class="legend-shape legend-line">2</div>
+              <div>
+                <p class="legend-name">Texto <code>&lt;p&gt;</code></p>
+                <p class="legend-desc">
+                  Linea larga y bajita. Escribe "2" + el texto del parrafo.
+                </p>
+              </div>
+            </div>
 
-            <div class="sketch-controls">
-              <button id="capture-sketch-button" class="mode-card wide-btn">
-                📸 Capturar y Generar
-              </button>
+            <div class="legend-item">
+              <div class="legend-shape legend-square">3</div>
+              <div>
+                <p class="legend-name">Imagen <code>&lt;img&gt;</code></p>
+                <p class="legend-desc">
+                  Cuadrado. Escribe "3" + una descripcion de la imagen.
+                </p>
+              </div>
+            </div>
+
+            <div class="legend-item">
+              <div class="legend-shape legend-small">4</div>
+              <div>
+                <p class="legend-name">Boton <code>&lt;button&gt;</code></p>
+                <p class="legend-desc">
+                  Cuadro chico. Escribe "4" + el texto del boton.
+                </p>
+              </div>
+            </div>
+
+            <div class="legend-item">
+              <div class="legend-shape legend-small">5</div>
+              <div>
+                <p class="legend-name">Switch <code>&lt;input&gt;</code></p>
+                <p class="legend-desc">
+                  Cuadro chico. Escribe "5" + una etiqueta (ej. "5 Activar").
+                </p>
+              </div>
+            </div>
+
+            <div class="legend-item">
+              <div class="legend-shape legend-wide-thin">6</div>
+              <div>
+                <p class="legend-name">Menu <code>&lt;nav&gt;</code></p>
+                <p class="legend-desc">
+                  Franja angosta. Escribe "6" + opciones separadas por coma.
+                </p>
+              </div>
+            </div>
+
+            <div class="legend-item">
+              <div class="legend-shape legend-container">7</div>
+              <div>
+                <p class="legend-name">Contenedor <code>&lt;section&gt;</code></p>
+                <p class="legend-desc">
+                  Marco grande que agrupa otros elementos. Escribe solo "7".
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p class="mode-guide-tip">
+            Tip: coloca la hoja sobre una mesa o fondo de color distinto (no
+            blanco) para que el sistema detecte bien su borde, y que toda la
+            hoja quede dentro del encuadre, sin cortarse. Escribe el numero
+            BIEN GRANDE y CLARO al inicio de cada figura (ej. "1 Mi Sitio
+            Web"). Usa buena luz.
+          </p>
+
+          <button id="sketch-guide-start-button" class="mode-card wide-btn">
+            Comenzar
+          </button>
+        </div>
+
+        <div id="sketch-session" class="sketch-session" style="display: none">
+          <div class="sketch-panels">
+            <div class="sketch-camera-panel">
+              <div class="sketch-video-wrap">
+                <video id="sketch_video" autoplay playsinline></video>
+                <canvas id="sketch_canvas"></canvas>
+              </div>
+
+              <p id="sketch-status" class="sketch-status">
+                Cargando motor de vision (OpenCV.js)...
+              </p>
               <button
-                id="retry-sketch-button"
+                id="sketch-cv-retry-button"
                 class="back-button"
                 style="display: none"
               >
-                Tomar otra foto
+                🔄 Reintentar carga
               </button>
+
+              <div class="sketch-controls">
+                <button id="capture-sketch-button" class="mode-card wide-btn">
+                  📸 Capturar y Generar
+                </button>
+                <button
+                  id="retry-sketch-button"
+                  class="back-button"
+                  style="display: none"
+                >
+                  Tomar otra foto
+                </button>
+              </div>
+
+              <p class="sketch-hint">
+                Recuerda escribir el numero (1 a 7) al inicio de cada figura,
+                bien grande, y que la hoja completa quede dentro del encuadre
+                sobre un fondo de otro color.
+              </p>
             </div>
 
-            <p class="sketch-hint">
-              Dibuja en una hoja: un rectangulo ancho arriba = encabezado, una
-              franja angosta debajo = menu, cuadros pequeños = botones, lineas
-              largas y bajitas = parrafos, marcos grandes = contenedores.
-              Escribe el texto dentro de cada figura. Encuadra toda la hoja y
-              presiona Capturar.
-            </p>
+            <div id="sketch-results" class="sketch-results" style="display: none">
+              <div class="sketch-tabs">
+                <button class="sketch-tab active" data-tab="preview">
+                  Vista previa
+                </button>
+                <button class="sketch-tab" data-tab="html">HTML</button>
+                <button class="sketch-tab" data-tab="css">CSS</button>
+              </div>
+
+              <div id="sketch-tab-preview" class="sketch-tab-panel active">
+                <iframe id="sketch-preview-frame" title="Vista previa generada"></iframe>
+              </div>
+              <div id="sketch-tab-html" class="sketch-tab-panel">
+                <button class="copy-code-btn" data-copy="html">Copiar HTML</button>
+                <pre><code id="sketch-html-code"></code></pre>
+              </div>
+              <div id="sketch-tab-css" class="sketch-tab-panel">
+                <button class="copy-code-btn" data-copy="css">Copiar CSS</button>
+                <pre><code id="sketch-css-code"></code></pre>
+              </div>
+
+              <div class="sketch-detected-list">
+                <h3>Elementos detectados</h3>
+                <div id="sketch-elements-list"></div>
+              </div>
+            </div>
           </div>
 
-          <div id="sketch-results" class="sketch-results" style="display: none">
-            <div class="sketch-tabs">
-              <button class="sketch-tab active" data-tab="preview">
-                Vista previa
-              </button>
-              <button class="sketch-tab" data-tab="html">HTML</button>
-              <button class="sketch-tab" data-tab="css">CSS</button>
-            </div>
-
-            <div id="sketch-tab-preview" class="sketch-tab-panel active">
-              <iframe
-                id="sketch-preview-frame"
-                title="Vista previa generada"
-              ></iframe>
-            </div>
-            <div id="sketch-tab-html" class="sketch-tab-panel">
-              <button class="copy-code-btn" data-copy="html">
-                Copiar HTML
-              </button>
-              <pre><code id="sketch-html-code"></code></pre>
-            </div>
-            <div id="sketch-tab-css" class="sketch-tab-panel">
-              <button class="copy-code-btn" data-copy="css">Copiar CSS</button>
-              <pre><code id="sketch-css-code"></code></pre>
-            </div>
-
-            <div class="sketch-detected-list">
-              <h3>Elementos detectados</h3>
-              <div id="sketch-elements-list"></div>
-            </div>
-          </div>
+          <p id="sketch-progress-note" class="sketch-progress-note"></p>
         </div>
-
-        <p id="sketch-progress-note" class="sketch-progress-note"></p>
       </main>
     </div>
 
@@ -205,99 +317,98 @@
       </header>
 
       <main class="ca-main">
-        <p id="ca-status" class="ca-status">
-          Cargando motor de vision (OpenCV.js)...
-        </p>
-
-        <div class="ca-palette">
-          <span class="ca-palette-label">Color a rastrear:</span>
-          <button
-            class="ca-color-btn"
-            data-color="rojo"
-            style="--swatch: #ef4444"
-          >
-            Rojo
-          </button>
-          <button
-            class="ca-color-btn"
-            data-color="naranja"
-            style="--swatch: #f97316"
-          >
-            Naranja
-          </button>
-          <button
-            class="ca-color-btn"
-            data-color="amarillo"
-            style="--swatch: #facc15"
-          >
-            Amarillo
-          </button>
-          <button
-            class="ca-color-btn"
-            data-color="verde"
-            style="--swatch: #22c55e"
-          >
-            Verde
-          </button>
-          <button
-            class="ca-color-btn"
-            data-color="azul"
-            style="--swatch: #3b82f6"
-          >
-            Azul
+        <div id="ca-guide" class="mode-guide">
+          <h2>Como funciona Code-Avatar</h2>
+          <ul class="mode-guide-list">
+            <li>🎨 Elige el color de un objeto que tengas a la mano (marcador, taza, tarjeta, etc.).</li>
+            <li>📷 Muestra ese objeto frente a la camara: se crea una instancia de <code>ElementoWeb</code>.</li>
+            <li>➡️ Muevelo: veras como cambian <code>x</code>, <code>y</code> y se llama a <code>mover()</code>.</li>
+            <li>🖐️ Tapalo con la mano: se llama a <code>ocultar()</code> y cambia su estado.</li>
+            <li>🏁 Presiona "Finalizar sesion" para ver cuantos conceptos de POO observaste.</li>
+          </ul>
+          <button id="ca-guide-start-button" class="mode-card wide-btn">
+            Comenzar
           </button>
         </div>
 
-        <div id="ca-live-panels" class="ca-panels">
-          <div class="ca-camera-panel">
-            <div class="ca-video-wrap">
-              <video id="ca_video" autoplay playsinline muted></video>
-              <canvas id="ca_overlay" width="320" height="240"></canvas>
-            </div>
-            <div class="ca-state-row">
-              <span>Estado del objeto:</span>
-              <span id="ca-state-badge" class="type-badge ca-state-badge"
-                >Sin objeto</span
-              >
-            </div>
-            <p class="ca-hint">
-              Sostén un objeto de ese color frente a la camara (marcador, taza,
-              tarjeta). Muevelo, quedate quieto y luego tapalo con la mano para
-              ver como cambian sus atributos y se llaman sus metodos.
-            </p>
-          </div>
-
-          <div class="ca-code-panel">
-            <h3>Clase (definicion)</h3>
-            <pre class="ca-code-block"><code id="ca-class-code"></code></pre>
-
-            <h3>Instancia en memoria (en vivo)</h3>
-            <pre
-              class="ca-code-block ca-instance-block"
-            ><code id="ca-instance-code"></code></pre>
-
-            <h3>Consola de metodos invocados</h3>
-            <div id="ca-console" class="ca-console"></div>
-          </div>
-        </div>
-
-        <p id="ca-progress-note" class="ca-progress-note">
-          Conceptos observados: 0/6
-        </p>
-
-        <button id="ca-finish-button" class="back-button">
-          Finalizar sesion
-        </button>
-
-        <div id="ca-summary" class="exam-box" style="display: none">
-          <h2>Sesion de Code-Avatar completada</h2>
-          <p>
-            Conceptos de POO observados:
-            <span id="ca-summary-score" class="highlight">0%</span>
+        <div id="ca-session" class="ca-session" style="display: none">
+          <p id="ca-status" class="ca-status">
+            Cargando motor de vision (OpenCV.js)...
           </p>
-          <button id="ca-restart-button" class="mode-card wide-btn">
-            Intentar de nuevo
+          <button
+            id="ca-cv-retry-button"
+            class="back-button"
+            style="display: none; margin: 0 auto 14px"
+          >
+            🔄 Reintentar carga
           </button>
+
+          <div class="ca-palette">
+            <span class="ca-palette-label">Color a rastrear:</span>
+            <button class="ca-color-btn" data-color="rojo" style="--swatch: #ef4444">
+              Rojo
+            </button>
+            <button class="ca-color-btn" data-color="naranja" style="--swatch: #f97316">
+              Naranja
+            </button>
+            <button class="ca-color-btn" data-color="amarillo" style="--swatch: #facc15">
+              Amarillo
+            </button>
+            <button class="ca-color-btn" data-color="verde" style="--swatch: #22c55e">
+              Verde
+            </button>
+            <button class="ca-color-btn" data-color="azul" style="--swatch: #3b82f6">
+              Azul
+            </button>
+          </div>
+
+          <div id="ca-live-panels" class="ca-panels">
+            <div class="ca-camera-panel">
+              <div class="ca-video-wrap">
+                <video id="ca_video" autoplay playsinline muted></video>
+                <canvas id="ca_overlay" width="320" height="240"></canvas>
+              </div>
+              <div class="ca-state-row">
+                <span>Estado del objeto:</span>
+                <span id="ca-state-badge" class="type-badge ca-state-badge">Sin objeto</span>
+              </div>
+              <p class="ca-hint">
+                Sostén un objeto de ese color frente a la camara (marcador, taza,
+                tarjeta). Muevelo, quedate quieto y luego tapalo con la mano para
+                ver como cambian sus atributos y se llaman sus metodos.
+              </p>
+            </div>
+
+            <div class="ca-code-panel">
+              <h3>Clase (definicion)</h3>
+              <pre class="ca-code-block"><code id="ca-class-code"></code></pre>
+
+              <h3>Instancia en memoria (en vivo)</h3>
+              <pre class="ca-code-block ca-instance-block"><code id="ca-instance-code"></code></pre>
+
+              <h3>Consola de metodos invocados</h3>
+              <div id="ca-console" class="ca-console"></div>
+            </div>
+          </div>
+
+          <p id="ca-progress-note" class="ca-progress-note">
+            Conceptos observados: 0/6
+          </p>
+
+          <button id="ca-finish-button" class="back-button">
+            Finalizar sesion
+          </button>
+
+          <div id="ca-summary" class="exam-box" style="display: none">
+            <h2>Sesion de Code-Avatar completada</h2>
+            <p>
+              Conceptos de POO observados:
+              <span id="ca-summary-score" class="highlight">0%</span>
+            </p>
+            <button id="ca-restart-button" class="mode-card wide-btn">
+              Intentar de nuevo
+            </button>
+          </div>
         </div>
       </main>
     </div>

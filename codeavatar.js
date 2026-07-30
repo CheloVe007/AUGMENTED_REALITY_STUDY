@@ -42,20 +42,51 @@ const COLOR_SWATCH = {
 function caSetCvReady() {
   caCvReady = true;
   const statusEl = document.getElementById("ca-status");
-  if (statusEl && statusEl.textContent.indexOf("motor de vision") !== -1) {
+  if (statusEl && /motor de vision|cargando/i.test(statusEl.textContent)) {
     statusEl.textContent = "Camara lista. Elige un color para empezar a rastrear.";
   }
+  const retryBtn = document.getElementById("ca-cv-retry-button");
+  if (retryBtn) retryBtn.style.display = "none";
 }
-function caBootstrapOpenCV() {
-  if (window.cv && cv.Mat) {
+
+const CA_CV_LOAD_TIMEOUT_MS = 25000;
+let caCvLoadStartedAt = Date.now();
+
+function caPollCvReady() {
+  if (caCvReady) return;
+  if (window.cv && window.cv.Mat) {
     caSetCvReady();
     return;
   }
-  if (window.cv) {
-    cv["onRuntimeInitialized"] = caSetCvReady;
-  } else {
-    setTimeout(caBootstrapOpenCV, 200);
+  if (Date.now() - caCvLoadStartedAt > CA_CV_LOAD_TIMEOUT_MS) {
+    const statusEl = document.getElementById("ca-status");
+    if (statusEl) {
+      statusEl.textContent =
+        "No se pudo cargar el motor de vision (OpenCV.js). Revisa tu conexion a internet.";
+    }
+    const retryBtn = document.getElementById("ca-cv-retry-button");
+    if (retryBtn) retryBtn.style.display = "inline-block";
+    return;
   }
+  setTimeout(caPollCvReady, 250);
+}
+
+function caBootstrapOpenCV() {
+  if (window.cv && typeof window.cv.then === "function") {
+    window.cv.then((resolved) => {
+      window.cv = resolved;
+      caSetCvReady();
+    });
+  } else if (window.cv && window.cv.Mat) {
+    caSetCvReady();
+  } else if (window.cv) {
+    try {
+      window.cv["onRuntimeInitialized"] = caSetCvReady;
+    } catch (e) {
+      /* el sondeo de respaldo de abajo lo detecta igual */
+    }
+  }
+  caPollCvReady();
 }
 caBootstrapOpenCV();
 
@@ -118,6 +149,8 @@ function stopCodeAvatarSession() {
     caStream.getTracks().forEach((t) => t.stop());
     caStream = null;
   }
+  document.getElementById("ca-guide").style.display = "block";
+  document.getElementById("ca-session").style.display = "none";
 }
 
 function caResetState() {
@@ -400,3 +433,14 @@ document.getElementById("ca-restart-button").addEventListener("click", () => {
 
 window.startCodeAvatarSession = startCodeAvatarSession;
 window.stopCodeAvatarSession = stopCodeAvatarSession;
+
+document.getElementById("ca-guide-start-button").addEventListener("click", () => {
+  document.getElementById("ca-guide").style.display = "none";
+  document.getElementById("ca-session").style.display = "block";
+  startCodeAvatarSession();
+});
+
+const caCvRetryBtn = document.getElementById("ca-cv-retry-button");
+if (caCvRetryBtn) {
+  caCvRetryBtn.addEventListener("click", () => window.location.reload());
+}

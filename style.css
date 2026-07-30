@@ -231,6 +231,176 @@ body {
   display: none;
 }
 
+/* ---------- Guia de uso generica (RA, boceto, code-avatar) ---------- */
+
+.mode-guide {
+  width: 100%;
+  max-width: 700px;
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 14px;
+  padding: 26px 28px;
+  margin: 0 auto;
+}
+
+.mode-guide h2 {
+  color: #38bdf8;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.mode-guide-intro {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.mode-guide-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-guide-list li {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.mode-guide-list li code {
+  background: #1e293b;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #a5f3fc;
+  font-family: "Consolas", "Courier New", monospace;
+}
+
+.mode-guide-tip {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed #334155;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.mode-guide .wide-btn {
+  margin: 0 auto;
+}
+
+.mode-guide-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 20px;
+}
+
+.mode-guide-card {
+  max-width: 460px;
+  width: 100%;
+  background: #1e293b;
+  border: 2px solid #38bdf8;
+  border-radius: 14px;
+  padding: 26px 28px;
+}
+
+.mode-guide-card h2 {
+  color: #38bdf8;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* ---------- Leyenda de simbolos: boceto ---------- */
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.legend-shape {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #38bdf8;
+  border-radius: 4px;
+  color: #7dd3fc;
+  font-weight: 800;
+  font-size: 0.8rem;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.legend-wide {
+  width: 64px;
+  height: 26px;
+}
+.legend-wide-thin {
+  width: 64px;
+  height: 16px;
+}
+.legend-line {
+  width: 64px;
+  height: 12px;
+}
+.legend-square {
+  width: 40px;
+  height: 40px;
+}
+.legend-small {
+  width: 34px;
+  height: 24px;
+}
+.legend-container {
+  width: 64px;
+  height: 48px;
+}
+
+.legend-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 2px;
+}
+.legend-name code {
+  background: #1e293b;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #a5f3fc;
+  font-family: "Consolas", "Courier New", monospace;
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+.legend-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
 #output_canvas,
 #three_canvas {
   position: absolute;
@@ -407,6 +577,10 @@ body {
 
 /* ---------- De Boceto a Web Live ---------- */
 
+.sketch-session {
+  width: 100%;
+}
+
 .sketch-panels {
   display: flex;
   gap: 20px;
@@ -458,6 +632,12 @@ body {
   color: #94a3b8;
   text-align: center;
   min-height: 18px;
+}
+
+#sketch-cv-retry-button,
+#ca-cv-retry-button {
+  display: block;
+  margin: 6px auto 0;
 }
 
 .sketch-controls {
@@ -590,6 +770,12 @@ body {
   color: #cbd5e1;
 }
 
+.sketch-element-source {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
 .sketch-progress-note {
   margin-top: 16px;
   text-align: center;
@@ -640,6 +826,10 @@ body {
 .ca-main {
   width: 100%;
   max-width: 1100px;
+}
+
+.ca-session {
+  width: 100%;
 }
 
 .ca-status {
