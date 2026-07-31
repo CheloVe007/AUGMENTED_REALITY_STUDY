@@ -162,12 +162,16 @@ function cleanOcrText(raw) {
   return cleaned.slice(0, 60);
 }
 
-function cropCanvas(rect) {
-  const scale = 2;
-  const pad = Math.round(Math.min(rect.width, rect.height) * 0.08);
+function cropRegion(rect, options) {
+  const opts = options || {};
+  const scale = opts.scale || 2;
+  const padFrac = opts.padFrac !== undefined ? opts.padFrac : 0.1;
+  const widthFrac = opts.widthFrac !== undefined ? opts.widthFrac : 1;
+
+  const pad = Math.round(Math.min(rect.width, rect.height) * padFrac);
   const sx = Math.max(0, rect.x + pad);
   const sy = Math.max(0, rect.y + pad);
-  const sw = Math.max(1, rect.width - pad * 2);
+  const sw = Math.max(1, Math.round((rect.width - pad * 2) * widthFrac));
   const sh = Math.max(1, rect.height - pad * 2);
 
   const crop = document.createElement("canvas");
@@ -177,6 +181,15 @@ function cropCanvas(rect) {
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(rawFrameCanvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
   return crop;
+}
+
+function cropCanvas(rect) {
+  return cropRegion(rect, { scale: 2, padFrac: 0.1, widthFrac: 1 });
+}
+
+// recorte angosto del inicio de la caja, ampliado, para leer SOLO el numero
+function cropNumberRegion(rect) {
+  return cropRegion(rect, { scale: 3, padFrac: 0.12, widthFrac: 0.45 });
 }
 
 function iou(a, b) {
@@ -258,14 +271,15 @@ function detectPaperCorners(srcMat) {
   const blurred = new cv.Mat();
   cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
   const edges = new cv.Mat();
-  cv.Canny(blurred, edges, 50, 150);
-  const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
+  cv.Canny(blurred, edges, 40, 130);
+  const kernel = cv.Mat.ones(7, 7, cv.CV_8U);
   const dilated = new cv.Mat();
-  cv.dilate(edges, dilated, kernel);
+  cv.dilate(edges, dilated, kernel, new cv.Point(-1, -1), 2);
 
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
-  cv.findContours(dilated, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+  // solo el contorno mas externo: nos interesa el borde de la hoja, no lo que hay dibujado adentro
+  cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
   const imgArea = srcMat.cols * srcMat.rows;
   let bestQuad = null;
@@ -273,20 +287,16 @@ function detectPaperCorners(srcMat) {
 
   for (let i = 0; i < contours.size(); i++) {
     const cnt = contours.get(i);
-    const peri = cv.arcLength(cnt, true);
-    const approx = new cv.Mat();
-    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
     const area = cv.contourArea(cnt);
 
-    if (approx.rows === 4 && area > imgArea * 0.2 && area > bestArea) {
+    // usamos el rectangulo rotado que mejor envuelve el contorno: es mucho mas
+    // tolerante que exigir que approxPolyDP encuentre exactamente 4 vertices
+    if (area > imgArea * 0.15 && area > bestArea) {
+      const rotated = cv.minAreaRect(cnt);
+      const boxPts = cv.RotatedRect.points(rotated);
       bestArea = area;
-      const pts = [];
-      for (let j = 0; j < 4; j++) {
-        pts.push({ x: approx.data32S[j * 2], y: approx.data32S[j * 2 + 1] });
-      }
-      bestQuad = pts;
+      bestQuad = boxPts.map((p) => ({ x: p.x, y: p.y }));
     }
-    approx.delete();
     cnt.delete();
   }
 
@@ -298,7 +308,7 @@ function detectPaperCorners(srcMat) {
   contours.delete();
   hierarchy.delete();
 
-  return bestQuad; // null si no se encontro un cuadrilatero claro
+  return bestQuad; // null si no se encontro un borde de hoja claro
 }
 
 function warpToPaper(srcMat, corners) {
@@ -347,7 +357,7 @@ function detectAndWarpPaper() {
   return true;
 }
 
-// ---------- vision: OpenCV.js — contornos y cajas delimitadoras ----------
+// ---------- vision: OpenCV.js — contornos y cajas delimitadoras (solo rectangulos/cuadrados) ----------
 function detectBoxesFromFrame() {
   const src = cv.imread(rawFrameCanvas);
   const gray = new cv.Mat();
@@ -367,9 +377,11 @@ function detectBoxesFromFrame() {
     10,
   );
 
-  const kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+  // kernel mas grande + dos pasadas: ayuda a cerrar pequeños huecos en los
+  // trazos a mano para que cada rectangulo forme un solo contorno cerrado
+  const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
   const closed = new cv.Mat();
-  cv.morphologyEx(thresh, closed, cv.MORPH_CLOSE, kernel);
+  cv.morphologyEx(thresh, closed, cv.MORPH_CLOSE, kernel, new cv.Point(-1, -1), 2);
 
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
@@ -387,10 +399,18 @@ function detectBoxesFromFrame() {
     const areaFrac = area / totalArea;
     const contourArea = cv.contourArea(cnt);
     const extent = contourArea / (area || 1);
+
+    const peri = cv.arcLength(cnt, true);
+    const approx = new cv.Mat();
+    cv.approxPolyDP(cnt, approx, 0.03 * peri, true);
+    const vertices = approx.rows;
+    approx.delete();
     cnt.delete();
 
-    if (areaFrac < 0.006 || areaFrac > 0.9) continue; // ruido o el borde de la hoja completa
-    if (extent < 0.25) continue; // trazos demasiado irregulares para ser una "caja"
+    if (areaFrac < 0.008 || areaFrac > 0.85) continue; // ruido o el borde de la hoja completa
+    if (extent < 0.55) continue; // debe llenar bien su rectangulo delimitador (no un trazo suelto)
+    if (vertices < 4 || vertices > 8) continue; // debe parecerse a un rectangulo/cuadrado, no una figura irregular
+
     boxes.push(rect);
   }
 
@@ -633,7 +653,7 @@ function renderElementsList(elements) {
   elements.forEach((el) => {
     const item = document.createElement("div");
     item.className = "sketch-element-item";
-    const sourceLabel = el.classifiedBy === "codigo" ? "por codigo" : "por forma (adivinado)";
+    const sourceLabel = el.classifiedBy === "numero" ? "por numero" : "por forma (adivinado)";
     item.innerHTML = `
       <span class="sketch-element-tag" style="border-color:${TYPE_COLORS[el.type]}">${TYPE_LABELS[el.type]}</span>
       <span class="sketch-element-text">${el.text ? escapeHtml(el.text) : "(sin texto reconocido)"} <em class="sketch-element-source">(${sourceLabel})</em></span>
@@ -697,27 +717,42 @@ async function captureAndGenerateHandler() {
     return;
   }
 
-  statusEl.textContent = `Leyendo texto escrito a mano (0/${elements.length})...`;
+  statusEl.textContent = `Leyendo numeros y texto (0/${elements.length})...`;
   try {
     const worker = await Tesseract.createWorker("spa");
     for (let i = 0; i < elements.length; i++) {
       try {
-        const crop = cropCanvas(elements[i].rect);
-        const { data } = await worker.recognize(crop);
-        const parsed = parseCodeAndLabel(data.text);
-        if (parsed) {
-          elements[i].type = parsed.type;
-          elements[i].text = parsed.text;
-          elements[i].classifiedBy = "codigo";
+        // pasada 1: solo digitos, recortado al inicio de la caja -> clasificacion confiable
+        await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
+        const numberCrop = cropNumberRegion(elements[i].rect);
+        const { data: numberData } = await worker.recognize(numberCrop);
+        const numberGuess = (numberData.text || "").replace(/\D/g, "").slice(0, 1);
+
+        // pasada 2: caja completa, sin restriccion -> texto/etiqueta real
+        await worker.setParameters({ tessedit_char_whitelist: "" });
+        const fullCrop = cropCanvas(elements[i].rect);
+        const { data: fullData } = await worker.recognize(fullCrop);
+        const parsedFull = parseCodeAndLabel(fullData.text);
+
+        if (numberGuess && CODE_MAP[numberGuess]) {
+          elements[i].type = CODE_MAP[numberGuess];
+          elements[i].text = parsedFull
+            ? parsedFull.text
+            : cleanOcrText((fullData.text || "").replace(/^\s*\d{1,2}/, ""));
+          elements[i].classifiedBy = "numero";
+        } else if (parsedFull) {
+          elements[i].type = parsedFull.type;
+          elements[i].text = parsedFull.text;
+          elements[i].classifiedBy = "numero";
         } else {
-          elements[i].text = cleanOcrText(data.text);
+          elements[i].text = cleanOcrText(fullData.text);
           elements[i].classifiedBy = "forma";
         }
       } catch (err) {
         elements[i].text = "";
         elements[i].classifiedBy = "forma";
       }
-      statusEl.textContent = `Leyendo texto escrito a mano (${i + 1}/${elements.length})...`;
+      statusEl.textContent = `Leyendo numeros y texto (${i + 1}/${elements.length})...`;
     }
     await worker.terminate();
   } catch (err) {
