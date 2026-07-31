@@ -53,7 +53,7 @@ function setCvReadyStatus() {
   cvReady = true;
   const statusEl = document.getElementById("sketch-status");
   if (statusEl && /motor de vision|cargando/i.test(statusEl.textContent)) {
-    statusEl.textContent = "Camara lista. Enfoca tu boceto y presiona Capturar.";
+    statusEl.textContent = "Camara lista. Enfoca tu boceto y presiona Capturar, o sube una foto.";
   }
   const retryBtn = document.getElementById("sketch-cv-retry-button");
   if (retryBtn) retryBtn.style.display = "none";
@@ -138,8 +138,13 @@ function resetSketchUI() {
   document.getElementById("retry-sketch-button").style.display = "none";
   document.getElementById("sketch-progress-note").textContent = "";
   document.getElementById("capture-sketch-button").disabled = false;
+  const uploadInput = document.getElementById("sketch-upload-input");
+  if (uploadInput) {
+    uploadInput.disabled = false;
+    uploadInput.value = "";
+  }
   document.getElementById("sketch-status").textContent = cvReady
-    ? "Camara lista. Enfoca tu boceto y presiona Capturar."
+    ? "Camara lista. Enfoca tu boceto y presiona Capturar, o sube una foto."
     : "Cargando motor de vision (OpenCV.js)...";
 }
 
@@ -662,32 +667,11 @@ function renderElementsList(elements) {
   });
 }
 
-// ---------- flujo principal: capturar -> detectar -> leer texto -> generar codigo ----------
-async function captureAndGenerateHandler() {
-  if (!cvReady) {
-    document.getElementById("sketch-status").textContent =
-      "El motor de vision aun esta cargando, espera unos segundos e intenta de nuevo.";
-    return;
-  }
-
+// ---------- flujo principal: procesa lo que ya esta dibujado en rawFrameCanvas ----------
+async function processCapturedFrame() {
   const captureBtn = document.getElementById("capture-sketch-button");
+  const uploadInput = document.getElementById("sketch-upload-input");
   const statusEl = document.getElementById("sketch-status");
-  captureBtn.disabled = true;
-  statusEl.textContent = "Capturando imagen...";
-
-  const video = document.getElementById("sketch_video");
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-
-  if (!w || !h) {
-    statusEl.textContent = "La camara todavia no esta lista, intenta de nuevo.";
-    captureBtn.disabled = false;
-    return;
-  }
-
-  rawFrameCanvas.width = w;
-  rawFrameCanvas.height = h;
-  rawFrameCanvas.getContext("2d").drawImage(video, 0, 0, w, h);
 
   statusEl.textContent = "Buscando el borde de la hoja...";
   await nextFrame();
@@ -699,7 +683,7 @@ async function captureAndGenerateHandler() {
   const dctx = displayCanvas.getContext("2d");
   dctx.drawImage(rawFrameCanvas, 0, 0);
 
-  video.classList.add("hidden");
+  document.getElementById("sketch_video").classList.add("hidden");
   displayCanvas.classList.add("visible");
 
   statusEl.textContent = paperFound
@@ -713,6 +697,7 @@ async function captureAndGenerateHandler() {
     statusEl.textContent =
       "No se detectaron formas claras. Usa trazos mas marcados, buena luz y encuadra toda la hoja.";
     captureBtn.disabled = false;
+    if (uploadInput) uploadInput.disabled = false;
     document.getElementById("retry-sketch-button").style.display = "inline-block";
     return;
   }
@@ -792,12 +777,94 @@ async function captureAndGenerateHandler() {
   }
 
   captureBtn.disabled = false;
+  if (uploadInput) uploadInput.disabled = false;
   document.getElementById("retry-sketch-button").style.display = "inline-block";
+}
+
+// ---------- opcion 1: tomar foto con la camara ----------
+async function captureAndGenerateHandler() {
+  if (!cvReady) {
+    document.getElementById("sketch-status").textContent =
+      "El motor de vision aun esta cargando, espera unos segundos e intenta de nuevo.";
+    return;
+  }
+
+  const captureBtn = document.getElementById("capture-sketch-button");
+  const uploadInput = document.getElementById("sketch-upload-input");
+  const statusEl = document.getElementById("sketch-status");
+  captureBtn.disabled = true;
+  if (uploadInput) uploadInput.disabled = true;
+  statusEl.textContent = "Capturando imagen...";
+
+  const video = document.getElementById("sketch_video");
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+
+  if (!w || !h) {
+    statusEl.textContent = "La camara todavia no esta lista, intenta de nuevo.";
+    captureBtn.disabled = false;
+    if (uploadInput) uploadInput.disabled = false;
+    return;
+  }
+
+  rawFrameCanvas.width = w;
+  rawFrameCanvas.height = h;
+  rawFrameCanvas.getContext("2d").drawImage(video, 0, 0, w, h);
+
+  await processCapturedFrame();
+}
+
+// ---------- opcion 2: subir una foto ya tomada (archivo de imagen) ----------
+function handleSketchFileUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!cvReady) {
+    document.getElementById("sketch-status").textContent =
+      "El motor de vision aun esta cargando, espera unos segundos e intenta de nuevo.";
+    event.target.value = "";
+    return;
+  }
+
+  const captureBtn = document.getElementById("capture-sketch-button");
+  const uploadInput = document.getElementById("sketch-upload-input");
+  const statusEl = document.getElementById("sketch-status");
+  captureBtn.disabled = true;
+  if (uploadInput) uploadInput.disabled = true;
+  statusEl.textContent = "Cargando foto subida...";
+
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+
+  img.onload = async () => {
+    rawFrameCanvas.width = img.naturalWidth;
+    rawFrameCanvas.height = img.naturalHeight;
+    rawFrameCanvas.getContext("2d").drawImage(img, 0, 0);
+    URL.revokeObjectURL(objectUrl);
+
+    await processCapturedFrame();
+    event.target.value = ""; // permite volver a subir el mismo archivo despues
+  };
+
+  img.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    statusEl.textContent = "No se pudo leer esa imagen. Intenta con otro archivo.";
+    captureBtn.disabled = false;
+    if (uploadInput) uploadInput.disabled = false;
+    event.target.value = "";
+  };
+
+  img.src = objectUrl;
 }
 
 // ---------- listeners de UI ----------
 document.getElementById("capture-sketch-button").addEventListener("click", captureAndGenerateHandler);
 document.getElementById("retry-sketch-button").addEventListener("click", resetSketchUI);
+
+const sketchUploadInput = document.getElementById("sketch-upload-input");
+if (sketchUploadInput) {
+  sketchUploadInput.addEventListener("change", handleSketchFileUpload);
+}
 
 document.querySelectorAll(".sketch-tab").forEach((tab) => {
   tab.addEventListener("click", () => {

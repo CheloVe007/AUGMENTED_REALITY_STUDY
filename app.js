@@ -65,7 +65,9 @@ function renderRegistry() {
     .sort((a, b) => a.localeCompare(b))
     .forEach((name) => {
       const records = byName[name];
-      const percents = records.map((r) => extractPercent(r.result)).filter((p) => p !== null);
+      const percents = records
+        .map((r) => extractPercent(r.result))
+        .filter((p) => p !== null);
       const avg = percents.length
         ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length)
         : null;
@@ -107,14 +109,16 @@ function toggleStudentDetail(row, records) {
   row.after(detail);
 }
 
-document.getElementById("clear-registry-button").addEventListener("click", () => {
-  const confirmed = confirm(
-    "Esto borrara el registro de TODOS los estudiantes guardado en este dispositivo. Deseas continuar?",
-  );
-  if (!confirmed) return;
-  localStorage.removeItem("aura3d_progress");
-  renderRegistry();
-});
+document
+  .getElementById("clear-registry-button")
+  .addEventListener("click", () => {
+    const confirmed = confirm(
+      "Esto borrara el registro de TODOS los estudiantes guardado en este dispositivo. Deseas continuar?",
+    );
+    if (!confirmed) return;
+    localStorage.removeItem("aura3d_progress");
+    renderRegistry();
+  });
 
 // ---------- pantalla 1: nombre ----------
 function goToMenu() {
@@ -147,7 +151,8 @@ document.querySelectorAll(".mode-card[data-mode]").forEach((card) => {
     if (mode === "ar-quiz") {
       showScreen("ar-quiz");
     } else if (mode === "sketch") {
-      document.getElementById("sketch-player-name").textContent = currentPlayerName;
+      document.getElementById("sketch-player-name").textContent =
+        currentPlayerName;
       showScreen("sketch");
     } else if (mode === "codeavatar") {
       document.getElementById("ca-player-name").textContent = currentPlayerName;

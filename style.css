@@ -647,6 +647,20 @@ body {
   margin-top: 8px;
 }
 
+.sketch-or {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  margin: -2px 0;
+}
+
+.sketch-upload-label {
+  display: flex;
+  cursor: pointer;
+  text-align: center;
+  justify-content: center;
+}
+
 .sketch-hint {
   margin-top: 14px;
   font-size: 0.78rem;
